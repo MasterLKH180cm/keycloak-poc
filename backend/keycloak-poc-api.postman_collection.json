@@ -1,9 +1,11 @@
 {
 	"info": {
-		"_postman_id": "keycloak-poc-api-collection",
+		"_postman_id": "eac85e5e-73f6-47a1-973e-d92ef86e5af6",
 		"name": "Keycloak POC API",
 		"description": "Complete API collection for Keycloak POC with authentication and user management",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "47673802",
+		"_collection_link": "https://jacky850628-9550001.postman.co/workspace/%25E6%259D%258E%25E5%259C%258B%25E5%25BC%2598's-Workspace~1de1b23b-f4c4-4d4c-8430-595482c9a230/collection/47673802-eac85e5e-73f6-47a1-973e-d92ef86e5af6?action=share&source=collection_link&creator=47673802"
 	},
 	"item": [
 		{
@@ -24,7 +26,8 @@
 									"    pm.environment.set('keycloak_id', response.user.keycloak_id);",
 									"}"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -42,11 +45,77 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/auth/login",
-							"host": ["{{base_url}}"],
-							"path": ["auth", "login"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
 						}
 					},
-					"response": []
+					"response": [
+						{
+							"name": "admin",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"{{admin_username}}\",\n    \"password\": \"{{admin_password}}\",\n    \"client_assertion_type\": \"jwt-bearer\",\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/auth/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"auth",
+										"login"
+									]
+								}
+							},
+							"_postman_previewlanguage": null,
+							"header": null,
+							"cookie": [],
+							"body": null
+						},
+						{
+							"name": "testuser",
+							"originalRequest": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"username\": \"{{username}}\",\n    \"password\": \"{{password}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/auth/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"auth",
+										"login"
+									]
+								}
+							},
+							"_postman_previewlanguage": null,
+							"header": null,
+							"cookie": [],
+							"body": null
+						}
+					]
 				},
 				{
 					"name": "Refresh Token",
@@ -81,8 +150,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/auth/refresh",
-							"host": ["{{base_url}}"],
-							"path": ["auth", "refresh"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"refresh"
+							]
 						}
 					},
 					"response": []
@@ -99,8 +173,13 @@
 						],
 						"url": {
 							"raw": "{{base_url}}/auth/logout",
-							"host": ["{{base_url}}"],
-							"path": ["auth", "logout"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
 						}
 					},
 					"response": []
@@ -117,8 +196,61 @@
 						],
 						"url": {
 							"raw": "{{base_url}}/auth/me",
-							"host": ["{{base_url}}"],
-							"path": ["auth", "me"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "{{base_url}}/auth/login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('access_token', response.access_token);",
+									"    pm.environment.set('refresh_token', response.refresh_token);",
+									"    pm.environment.set('user_id', response.user.id);",
+									"    pm.environment.set('keycloak_id', response.user.keycloak_id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{admin_username}}\",\n    \"password\": \"{{admin_password}}\",\n    \"client_assertion_type\": \"jwt-bearer\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
 						}
 					},
 					"response": []
@@ -162,8 +294,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/users/",
-							"host": ["{{base_url}}"],
-							"path": ["users", ""]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							]
 						}
 					},
 					"response": []
@@ -180,8 +317,13 @@
 						],
 						"url": {
 							"raw": "{{base_url}}/users/?skip=0&limit=10",
-							"host": ["{{base_url}}"],
-							"path": ["users", ""],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							],
 							"query": [
 								{
 									"key": "skip",
@@ -208,8 +350,13 @@
 						],
 						"url": {
 							"raw": "{{base_url}}/users/?skip=0&limit=10&department=Engineering&role=user&is_active=true",
-							"host": ["{{base_url}}"],
-							"path": ["users", ""],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							],
 							"query": [
 								{
 									"key": "skip",
@@ -248,8 +395,13 @@
 						],
 						"url": {
 							"raw": "{{base_url}}/users/{{user_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["users", "{{user_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							]
 						}
 					},
 					"response": []
@@ -274,8 +426,13 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/users/{{user_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["users", "{{user_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							]
 						}
 					},
 					"response": []
@@ -292,8 +449,13 @@
 						],
 						"url": {
 							"raw": "{{base_url}}/users/{{created_user_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["users", "{{created_user_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{created_user_id}}"
+							]
 						}
 					},
 					"response": []
@@ -310,8 +472,14 @@
 						],
 						"url": {
 							"raw": "{{base_url}}/users/{{user_id}}/audit-logs?skip=0&limit=50",
-							"host": ["{{base_url}}"],
-							"path": ["users", "{{user_id}}", "audit-logs"],
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}",
+								"audit-logs"
+							],
 							"query": [
 								{
 									"key": "skip",
@@ -352,57 +520,56 @@
 	"variable": [
 		{
 			"key": "base_url",
-			"value": "http://localhost:8000/api/v1",
-			"type": "string"
+			"value": "http://localhost:8000/api/v1"
 		},
 		{
 			"key": "username",
-			"value": "testuser",
-			"type": "string"
+			"value": "testuser"
 		},
 		{
 			"key": "password",
-			"value": "testpassword",
-			"type": "string"
+			"value": "testpassword"
 		},
 		{
 			"key": "new_username",
-			"value": "newuser",
-			"type": "string"
+			"value": "newuser"
 		},
 		{
 			"key": "new_email",
-			"value": "newuser@example.com",
-			"type": "string"
+			"value": "newuser@example.com"
 		},
 		{
 			"key": "new_password",
-			"value": "newpassword123",
-			"type": "string"
+			"value": "newpassword123"
 		},
 		{
 			"key": "access_token",
-			"value": "",
-			"type": "string"
+			"value": ""
 		},
 		{
 			"key": "refresh_token",
-			"value": "",
-			"type": "string"
+			"value": ""
 		},
 		{
 			"key": "user_id",
-			"value": "",
-			"type": "string"
+			"value": ""
 		},
 		{
 			"key": "keycloak_id",
-			"value": "",
-			"type": "string"
+			"value": ""
 		},
 		{
 			"key": "created_user_id",
-			"value": "",
+			"value": ""
+		},
+		{
+			"key": "admin_username",
+			"value": "admin",
+			"type": "string"
+		},
+		{
+			"key": "admin_password",
+			"value": "admin",
 			"type": "string"
 		}
 	]

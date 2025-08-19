@@ -32,7 +32,6 @@ async def login(
         # Get client IP and user agent for audit
         client_ip = request.client.host
         user_agent = request.headers.get("user-agent", "Unknown")
-
         # Authenticate with Keycloak
         auth_result = await keycloak_service.authenticate_user(
             login_data.username, login_data.password
@@ -40,7 +39,7 @@ async def login(
 
         # Get or create user in local database
         user = await get_or_create_user_from_keycloak(db, auth_result["userinfo"])
-
+        print(f"User info: {user}")
         # Create session in Redis
         session_data = {
             "user_id": user.id,

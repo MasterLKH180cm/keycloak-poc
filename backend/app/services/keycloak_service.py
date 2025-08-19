@@ -32,13 +32,30 @@ class KeycloakService:
                 client_id=settings.keycloak_client_id,
                 realm_name=settings.keycloak_realm,
                 client_secret_key=settings.keycloak_client_secret,
+                verify=True,
             )
+
+            # Verify client configuration
+            await self._verify_client_config()
 
             logger.info("Keycloak clients initialized successfully")
 
         except Exception as e:
             logger.error(f"Failed to initialize Keycloak clients: {e}")
             raise
+
+    async def _verify_client_config(self):
+        """Verify that the client is properly configured"""
+        try:
+            # Try to get well-known configuration
+            verify_admin_client = self.admin_client.verify
+            logger.info(f"Keycloak admin_client verify {verify_admin_client}")
+            well_known_openid_client = self.openid_client.well_known()
+            logger.info(
+                f"Keycloak openid_client well-known configuration retrieved successfully: {well_known_openid_client}"
+            )
+        except Exception as e:
+            logger.warning(f"Could not retrieve well-known configuration: {e}")
 
     async def create_user(self, user_data: UserCreate) -> str:
         """Create user in Keycloak and return Keycloak user ID"""
@@ -90,7 +107,28 @@ class KeycloakService:
     async def authenticate_user(self, username: str, password: str) -> Dict[str, Any]:
         """Authenticate user and return token information"""
         try:
-            token = self.openid_client.token(username, password)
+            logger.info(f"Authenticating user: {username}")
+
+            # Try different token request methods based on client configuration
+            try:
+                # First try with grant_type password
+                token = self.openid_client.token(
+                    username=username, password=password, grant_type="password"
+                )
+            except KeycloakError as e:
+                if "client_assertion_type" in str(e):
+                    # If client requires assertion, try with client credentials
+                    logger.info("Trying alternative authentication method")
+                    token = self.openid_client.token(
+                        username=username,
+                        password=password,
+                        grant_type="password",
+                        scope="openid profile email",
+                    )
+                else:
+                    raise e
+
+            logger.info("Authentication successful")
 
             # Get user info from token
             userinfo = self.openid_client.userinfo(token["access_token"])
@@ -103,8 +141,20 @@ class KeycloakService:
             }
 
         except KeycloakError as e:
-            logger.error(f"Authentication failed for user {username}: {e}")
-            raise ValueError("Invalid username or password")
+            error_msg = str(e)
+            logger.error(f"Authentication failed for user {username}: {error_msg}")
+
+            # Provide more specific error messages
+            if "invalid_client" in error_msg:
+                raise ValueError(
+                    "Client configuration error. Please check Keycloak client settings."
+                )
+            elif "invalid_grant" in error_msg:
+                raise ValueError("Invalid username or password")
+            elif "unauthorized_client" in error_msg:
+                raise ValueError("Client not authorized for this operation")
+            else:
+                raise ValueError(f"Authentication failed: {error_msg}")
         except Exception as e:
             logger.error(f"Unexpected error during authentication: {e}")
             raise
