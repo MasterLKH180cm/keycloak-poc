@@ -1,10 +1,8 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from app.core.security import get_current_user
-from app.db.database import get_db
 from app.db.redis import get_redis
-from app.models.user import User, UserAuditLog
 from app.schemas.user import (
     LoginRequest,
     LoginResponse,
@@ -13,8 +11,6 @@ from app.schemas.user import (
 )
 from app.services.keycloak_service import keycloak_service
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -24,7 +20,6 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 async def login(
     login_data: LoginRequest,
     request: Request,
-    db: AsyncSession = Depends(get_db),
     redis_client=Depends(get_redis),
 ):
     """Authenticate user and create session"""
@@ -32,59 +27,65 @@ async def login(
         # Get client IP and user agent for audit
         client_ip = request.client.host
         user_agent = request.headers.get("user-agent", "Unknown")
+
         # Authenticate with Keycloak
         auth_result = await keycloak_service.authenticate_user(
             login_data.username, login_data.password
         )
 
-        # Get or create user in local database
-        user = await get_or_create_user_from_keycloak(db, auth_result["userinfo"])
-        print(f"User info: {user}")
+        # Get user info from Keycloak
+        userinfo = auth_result["userinfo"]
+
         # Create session in Redis
         session_data = {
-            "user_id": user.id,
-            "keycloak_id": user.keycloak_id,
-            "username": user.username,
-            "email": user.email,
-            "role": user.role,
+            "user_id": userinfo["sub"],
+            "keycloak_id": userinfo["sub"],
+            "username": userinfo["preferred_username"],
+            "email": userinfo["email"],
+            "first_name": userinfo.get("given_name", ""),
+            "last_name": userinfo.get("family_name", ""),
+            "role": userinfo.get("role", "user"),
             "login_time": datetime.utcnow().isoformat(),
             "ip_address": client_ip,
             "user_agent": user_agent,
         }
 
         await redis_client.set_session(
-            user.keycloak_id,
+            userinfo["sub"],
             session_data,
             expire_seconds=1800,  # 30 minutes
         )
 
-        # Update user last login
-        user.last_login = datetime.utcnow()
-        user.failed_login_attempts = 0
-        user.account_locked_until = None
-
-        # Create audit log
-        audit_log = UserAuditLog(
-            user_id=user.id,
-            action="LOGIN",
-            details=f"Successful login from {client_ip}",
-            ip_address=client_ip,
-            user_agent=user_agent,
-            success=True,
+        # Create user response from Keycloak data
+        user_response = UserResponse(
+            id=userinfo["sub"],
+            keycloak_id=userinfo["sub"],
+            username=userinfo["preferred_username"],
+            email=userinfo["email"],
+            first_name=userinfo.get("given_name", ""),
+            last_name=userinfo.get("family_name", ""),
+            email_verified=userinfo.get("email_verified", False),
+            is_active=userinfo.get("enabled", True),
+            role=userinfo.get("role", "user"),
+            department=userinfo.get("department"),
+            license_number=userinfo.get("license_number"),
+            npi_number=userinfo.get("npi_number"),
+            created_at=None,
+            updated_at=None,
+            last_login=datetime.utcnow(),
         )
-        db.add(audit_log)
-        await db.commit()
 
         return LoginResponse(
             access_token=auth_result["access_token"],
             refresh_token=auth_result["refresh_token"],
             expires_in=auth_result["expires_in"],
-            user=UserResponse.from_orm(user),
+            user=user_response,
         )
 
     except ValueError as e:
-        # Log failed login attempt
-        await log_failed_login(db, login_data.username, client_ip, user_agent, str(e))
+        logger.warning(
+            f"Failed login attempt for {login_data.username} from {client_ip}: {e}"
+        )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except Exception as e:
         logger.error(f"Login error: {e}")
@@ -117,22 +118,14 @@ async def refresh_token(
 async def logout(
     current_user: dict = Depends(get_current_user),
     redis_client=Depends(get_redis),
-    db: AsyncSession = Depends(get_db),
 ):
     """Logout user and invalidate session"""
     try:
         # Remove session from Redis
         await redis_client.delete_session(current_user["keycloak_id"])
 
-        # Create audit log
-        audit_log = UserAuditLog(
-            user_id=current_user["keycloak_id"],
-            action="LOGOUT",
-            details="User logged out successfully",
-            success=True,
-        )
-        db.add(audit_log)
-        await db.commit()
+        # Optionally logout from Keycloak
+        await keycloak_service.logout_user(current_user["keycloak_id"])
 
         return {"message": "Logged out successfully"}
 
@@ -144,71 +137,43 @@ async def logout(
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_profile(
-    current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)
-):
+async def get_current_user_profile(current_user: dict = Depends(get_current_user)):
     """Get current user profile"""
-    user = await db.get(User, {"keycloak_id": current_user["keycloak_id"]})
-    if not user:
+    try:
+        # Get user info from Keycloak
+        userinfo = await keycloak_service.get_user_info(current_user["keycloak_id"])
+
+        user_response = UserResponse(
+            id=userinfo["id"],
+            keycloak_id=userinfo["id"],
+            username=userinfo["username"],
+            email=userinfo["email"],
+            first_name=userinfo.get("firstName", ""),
+            last_name=userinfo.get("lastName", ""),
+            email_verified=userinfo.get("emailVerified", False),
+            is_active=userinfo.get("enabled", True),
+            role=userinfo.get("attributes", {}).get("role", ["user"])[0]
+            if userinfo.get("attributes", {}).get("role")
+            else "user",
+            department=userinfo.get("attributes", {}).get("department", [None])[0],
+            license_number=userinfo.get("attributes", {}).get("license_number", [None])[
+                0
+            ],
+            npi_number=userinfo.get("attributes", {}).get("npi_number", [None])[0],
+            created_at=None,
+            updated_at=None,
+            last_login=None,
+        )
+
+        return user_response
+
+    except Exception as e:
+        logger.error(f"Error getting user profile: {e}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
-    return UserResponse.from_orm(user)
 
 
-async def get_or_create_user_from_keycloak(db: AsyncSession, userinfo: dict) -> User:
-    """Get existing user or create new one from Keycloak userinfo"""
-    # Try to find existing user
-    result = await db.execute(select(User).where(User.keycloak_id == userinfo["sub"]))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        # Create new user
-        user = User(
-            keycloak_id=userinfo["sub"],
-            username=userinfo["preferred_username"],
-            email=userinfo["email"],
-            first_name=userinfo.get("given_name", ""),
-            last_name=userinfo.get("family_name", ""),
-            email_verified=userinfo.get("email_verified", False),
-            is_active=True,
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-
-    return user
-
-
-async def log_failed_login(
-    db: AsyncSession, username: str, ip_address: str, user_agent: str, error: str
-):
+async def log_failed_login(username: str, ip_address: str, user_agent: str, error: str):
     """Log failed login attempt"""
-    try:
-        # Try to find user for failed login tracking
-        result = await db.execute(
-            select(User).where((User.username == username) | (User.email == username))
-        )
-        user = result.scalar_one_or_none()
-
-        if user:
-            user.failed_login_attempts += 1
-
-            # Lock account after 5 failed attempts
-            if user.failed_login_attempts >= 5:
-                user.account_locked_until = datetime.utcnow() + timedelta(minutes=30)
-
-            # Create audit log
-            audit_log = UserAuditLog(
-                user_id=user.id,
-                action="LOGIN_FAILED",
-                details=f"Failed login attempt: {error}",
-                ip_address=ip_address,
-                user_agent=user_agent,
-                success=False,
-            )
-            db.add(audit_log)
-
-        await db.commit()
-    except Exception as e:
-        logger.error(f"Failed to log failed login: {e}")
+    logger.warning(f"Failed login attempt for {username} from {ip_address}: {error}")

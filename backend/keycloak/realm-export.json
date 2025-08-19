@@ -1,0 +1,101 @@
+{
+  "id": "fastapi-realm",
+  "realm": "fastapi-realm",
+  "enabled": true,
+  "passwordPolicy": "length(8) and upperCase(1) and lowerCase(1) and digits(1)",
+  "attributes": {
+    "session_max_lifespan": "36000",
+    "session_idle_timeout": "1800",
+    "KEYCLOAK_ADMIN_USERNAME": "admin",
+    "KEYCLOAK_ADMIN_PASSWORD": "admin",
+    "KEYCLOAK_SERVER_URL": "http://localhost:8080",
+    "KEYCLOAK_REALM": "fastapi-realm",
+    "KEYCLOAK_CLIENT_ID": "fastapi-client",
+    "KEYCLOAK_CLIENT_SECRET": "eyJhbGciOiJIUzUxMiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJhYzg4OTVmNi1iN2E5LTQ3NWYtYWQ2MS0xMTNiYmI0Mjk2Y2MifQ.eyJleHAiOjAsImlhdCI6MTc1NTUwNDYzNSwianRpIjoiNmU3YmIyZjEtOTdjOS0wNDNhLTMwNjItZDUzZmZkMjZiMzZiIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL3JlYWxtcy9QT0MiLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjgwODAvcmVhbG1zL1BPQyIsInR5cCI6IlJlZ2lzdHJhdGlvbkFjY2Vzc1Rva2VuIiwicmVnaXN0cmF0aW9uX2F1dGgiOiJhdXRoZW50aWNhdGVkIn0.UhnMb_7M7j2Xd-M9En8qZZSJfI9-6ph732ZsPWDmxyOdGBiDJk_62AXvebIW8ncsGt9MB4tdQ0iflSU9G4FxZQ"
+  },
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Doe",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "user",
+        "description": "Regular FastAPI user"
+      },
+      {
+        "name": "admin",
+        "description": "Administrator with full access"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "fastapi-client",
+      "name": "FastAPI Demo Client",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost:8000/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "attributes": {
+        "access.token.lifespan": "3600",
+        "refresh.token.lifespan": "86400"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ]
+}

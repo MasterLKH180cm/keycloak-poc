@@ -1,14 +1,11 @@
 import logging
+from datetime import datetime
 from typing import List, Optional
 
 from app.core.security import get_current_user, require_admin
-from app.db.database import get_db
-from app.models.user import User, UserAuditLog
-from app.schemas.user import AuditLogResponse, UserCreate, UserResponse, UserUpdate
+from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.services.keycloak_service import keycloak_service
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/users", tags=["users"])
@@ -17,55 +14,81 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.post("/", response_model=UserResponse, dependencies=[Depends(require_admin)])
 async def create_user(
     user_data: UserCreate,
-    db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Create new user (Admin only)"""
     try:
-        # Check if username or email already exists
-        existing_user = await db.execute(
-            select(User).where(
-                (User.username == user_data.username) | (User.email == user_data.email)
-            )
-        )
-        if existing_user.scalar_one_or_none():
+        # Check if username or email already exists in Keycloak
+        existing_user = await keycloak_service.get_user_by_username(user_data.username)
+        if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username or email already exists",
+                detail="Username already exists",
             )
 
-        # Create user in Keycloak first
-        keycloak_id = await keycloak_service.create_user(user_data)
+        existing_email = await keycloak_service.get_user_by_email(user_data.email)
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already exists",
+            )
 
-        # Create user in local database
-        db_user = User(
-            keycloak_id=keycloak_id,
-            username=user_data.username,
-            email=user_data.email,
-            first_name=user_data.first_name,
-            last_name=user_data.last_name,
-            department=user_data.department,
-            role=user_data.role,
-            license_number=user_data.license_number,
-            npi_number=user_data.npi_number,
-            created_by=current_user["username"],
+        # Create user in Keycloak
+        keycloak_user_data = {
+            "username": user_data.username,
+            "email": user_data.email,
+            "firstName": user_data.first_name,
+            "lastName": user_data.last_name,
+            "enabled": True,
+            "emailVerified": False,
+            "attributes": {
+                "role": [user_data.role] if user_data.role else ["user"],
+                "department": [user_data.department] if user_data.department else [],
+                "license_number": [user_data.license_number]
+                if user_data.license_number
+                else [],
+                "npi_number": [user_data.npi_number] if user_data.npi_number else [],
+                "created_by": [current_user["username"]],
+            },
+        }
+
+        if user_data.password:
+            keycloak_user_data["credentials"] = [
+                {
+                    "type": "password",
+                    "value": user_data.password,
+                    "temporary": user_data.temporary_password
+                    if hasattr(user_data, "temporary_password")
+                    else True,
+                }
+            ]
+
+        keycloak_id = await keycloak_service.create_user(keycloak_user_data)
+
+        # Get created user info
+        created_user = await keycloak_service.get_user_info(keycloak_id)
+
+        user_response = UserResponse(
+            id=created_user["id"],
+            keycloak_id=created_user["id"],
+            username=created_user["username"],
+            email=created_user["email"],
+            first_name=created_user.get("firstName", ""),
+            last_name=created_user.get("lastName", ""),
+            email_verified=created_user.get("emailVerified", False),
+            is_active=created_user.get("enabled", True),
+            role=created_user.get("attributes", {}).get("role", ["user"])[0],
+            department=created_user.get("attributes", {}).get("department", [None])[0],
+            license_number=created_user.get("attributes", {}).get(
+                "license_number", [None]
+            )[0],
+            npi_number=created_user.get("attributes", {}).get("npi_number", [None])[0],
+            created_at=None,
+            updated_at=None,
+            last_login=None,
         )
 
-        db.add(db_user)
-        await db.commit()
-        await db.refresh(db_user)
-
-        # Create audit log
-        audit_log = UserAuditLog(
-            user_id=db_user.id,
-            action="USER_CREATED",
-            details=f"User created by {current_user['username']}",
-            success=True,
-        )
-        db.add(audit_log)
-        await db.commit()
-
-        return UserResponse.from_orm(db_user)
+        return user_response
 
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -86,114 +109,194 @@ async def list_users(
     department: Optional[str] = Query(None, description="Filter by department"),
     role: Optional[str] = Query(None, description="Filter by role"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
-    db: AsyncSession = Depends(get_db),
 ):
     """List all users with filtering and pagination (Admin only)"""
-    query = select(User)
+    try:
+        # Get users from Keycloak
+        users = await keycloak_service.list_users(
+            first=skip, max=limit, search=None, enabled=is_active
+        )
 
-    # Apply filters
-    if department:
-        query = query.where(User.department == department)
-    if role:
-        query = query.where(User.role == role)
-    if is_active is not None:
-        query = query.where(User.is_active == is_active)
+        user_responses = []
+        for user in users:
+            # Apply filters
+            user_department = user.get("attributes", {}).get("department", [None])[0]
+            user_role = user.get("attributes", {}).get("role", ["user"])[0]
 
-    # Apply pagination
-    query = query.offset(skip).limit(limit).order_by(User.created_at.desc())
+            if department and user_department != department:
+                continue
+            if role and user_role != role:
+                continue
 
-    result = await db.execute(query)
-    users = result.scalars().all()
+            user_response = UserResponse(
+                id=user["id"],
+                keycloak_id=user["id"],
+                username=user["username"],
+                email=user["email"],
+                first_name=user.get("firstName", ""),
+                last_name=user.get("lastName", ""),
+                email_verified=user.get("emailVerified", False),
+                is_active=user.get("enabled", True),
+                role=user_role,
+                department=user_department,
+                license_number=user.get("attributes", {}).get("license_number", [None])[
+                    0
+                ],
+                npi_number=user.get("attributes", {}).get("npi_number", [None])[0],
+                created_at=None,
+                updated_at=None,
+                last_login=None,
+            )
+            user_responses.append(user_response)
 
-    return [UserResponse.from_orm(user) for user in users]
+        return user_responses
+
+    except Exception as e:
+        logger.error(f"Error listing users: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list users",
+        )
 
 
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: str,
-    db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Get user by ID (Admin or own profile)"""
-    user = await db.get(User, user_id)
-    if not user:
+    try:
+        # Check if user can access this profile
+        if user_id != current_user["keycloak_id"] and "admin" not in current_user.get(
+            "roles", []
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to access this user",
+            )
+
+        # Get user from Keycloak
+        user = await keycloak_service.get_user_info(user_id)
+
+        user_response = UserResponse(
+            id=user["id"],
+            keycloak_id=user["id"],
+            username=user["username"],
+            email=user["email"],
+            first_name=user.get("firstName", ""),
+            last_name=user.get("lastName", ""),
+            email_verified=user.get("emailVerified", False),
+            is_active=user.get("enabled", True),
+            role=user.get("attributes", {}).get("role", ["user"])[0]
+            if user.get("attributes", {}).get("role")
+            else "user",
+            department=user.get("attributes", {}).get("department", [None])[0],
+            license_number=user.get("attributes", {}).get("license_number", [None])[0],
+            npi_number=user.get("attributes", {}).get("npi_number", [None])[0],
+            created_at=None,
+            updated_at=None,
+            last_login=None,
+        )
+
+        return user_response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting user: {e}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
-
-    # Check if user can access this profile
-    if user.keycloak_id != current_user[
-        "keycloak_id"
-    ] and "admin" not in current_user.get("roles", []):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this user",
-        )
-
-    return UserResponse.from_orm(user)
 
 
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
     user_id: str,
     user_data: UserUpdate,
-    db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """Update user (Admin or own profile)"""
-    user = await db.get(User, user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
-
-    # Check permissions
-    if user.keycloak_id != current_user[
-        "keycloak_id"
-    ] and "admin" not in current_user.get("roles", []):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this user",
-        )
-
     try:
-        # Update local database
+        # Check permissions
+        if user_id != current_user["keycloak_id"] and "admin" not in current_user.get(
+            "roles", []
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to update this user",
+            )
+
+        # Prepare update data for Keycloak
         update_data = user_data.dict(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(user, field, value)
+        keycloak_update_data = {}
 
-        user.updated_by = current_user["username"]
+        if "first_name" in update_data:
+            keycloak_update_data["firstName"] = update_data["first_name"]
+        if "last_name" in update_data:
+            keycloak_update_data["lastName"] = update_data["last_name"]
+        if "email" in update_data:
+            keycloak_update_data["email"] = update_data["email"]
 
-        # Update Keycloak user
-        keycloak_update_data = {
-            "firstName": user.first_name,
-            "lastName": user.last_name,
-            "attributes": {
-                "department": [user.department] if user.department else [],
-                "license_number": [user.license_number] if user.license_number else [],
-                "npi_number": [user.npi_number] if user.npi_number else [],
-            },
-        }
+        # Handle attributes
+        attributes = {}
+        if "department" in update_data:
+            attributes["department"] = (
+                [update_data["department"]] if update_data["department"] else []
+            )
+        if "role" in update_data:
+            attributes["role"] = (
+                [update_data["role"]] if update_data["role"] else ["user"]
+            )
+        if "license_number" in update_data:
+            attributes["license_number"] = (
+                [update_data["license_number"]] if update_data["license_number"] else []
+            )
+        if "npi_number" in update_data:
+            attributes["npi_number"] = (
+                [update_data["npi_number"]] if update_data["npi_number"] else []
+            )
 
-        await keycloak_service.update_user(user.keycloak_id, keycloak_update_data)
+        if attributes:
+            # Get current attributes to merge
+            current_user_info = await keycloak_service.get_user_info(user_id)
+            current_attributes = current_user_info.get("attributes", {})
+            current_attributes.update(attributes)
+            current_attributes["updated_by"] = [current_user["username"]]
+            keycloak_update_data["attributes"] = current_attributes
 
-        await db.commit()
-        await db.refresh(user)
+        # Update user in Keycloak
+        await keycloak_service.update_user(user_id, keycloak_update_data)
 
-        # Create audit log
-        audit_log = UserAuditLog(
-            user_id=user.id,
-            action="USER_UPDATED",
-            details=f"User updated by {current_user['username']}",
-            success=True,
+        # Get updated user info
+        updated_user = await keycloak_service.get_user_info(user_id)
+
+        user_response = UserResponse(
+            id=updated_user["id"],
+            keycloak_id=updated_user["id"],
+            username=updated_user["username"],
+            email=updated_user["email"],
+            first_name=updated_user.get("firstName", ""),
+            last_name=updated_user.get("lastName", ""),
+            email_verified=updated_user.get("emailVerified", False),
+            is_active=updated_user.get("enabled", True),
+            role=updated_user.get("attributes", {}).get("role", ["user"])[0]
+            if updated_user.get("attributes", {}).get("role")
+            else "user",
+            department=updated_user.get("attributes", {}).get("department", [None])[0],
+            license_number=updated_user.get("attributes", {}).get(
+                "license_number", [None]
+            )[0],
+            npi_number=updated_user.get("attributes", {}).get("npi_number", [None])[0],
+            created_at=None,
+            updated_at=None,
+            last_login=None,
         )
-        db.add(audit_log)
-        await db.commit()
 
-        return UserResponse.from_orm(user)
+        return user_response
 
+    except HTTPException:
+        raise
     except Exception as e:
-        await db.rollback()
         logger.error(f"User update error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -204,40 +307,25 @@ async def update_user(
 @router.delete("/{user_id}", dependencies=[Depends(require_admin)])
 async def deactivate_user(
     user_id: str,
-    db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    """Deactivate user (Admin only) - We don't delete for audit purposes"""
-    user = await db.get(User, user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
-
+    """Deactivate user (Admin only) - We disable instead of delete for audit purposes"""
     try:
-        # Deactivate in local database
-        user.is_active = False
-        user.updated_by = current_user["username"]
-
-        # Disable in Keycloak
-        await keycloak_service.update_user(user.keycloak_id, {"enabled": False})
-
-        await db.commit()
-
-        # Create audit log
-        audit_log = UserAuditLog(
-            user_id=user.id,
-            action="USER_DEACTIVATED",
-            details=f"User deactivated by {current_user['username']}",
-            success=True,
+        # Disable user in Keycloak
+        await keycloak_service.update_user(
+            user_id,
+            {
+                "enabled": False,
+                "attributes": {
+                    "deactivated_by": [current_user["username"]],
+                    "deactivated_at": [datetime.utcnow().isoformat()],
+                },
+            },
         )
-        db.add(audit_log)
-        await db.commit()
 
         return {"message": "User deactivated successfully"}
 
     except Exception as e:
-        await db.rollback()
         logger.error(f"User deactivation error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -245,39 +333,49 @@ async def deactivate_user(
         )
 
 
-@router.get("/{user_id}/audit-logs", response_model=List[AuditLogResponse])
-async def get_user_audit_logs(
+@router.post("/{user_id}/reset-password", dependencies=[Depends(require_admin)])
+async def reset_user_password(
     user_id: str,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    db: AsyncSession = Depends(get_db),
+    password: str,
+    temporary: bool = True,
     current_user: dict = Depends(get_current_user),
 ):
-    """Get user audit logs (Admin or own logs)"""
-    user = await db.get(User, user_id)
-    if not user:
+    """Reset user password (Admin only)"""
+    try:
+        await keycloak_service.reset_user_password(user_id, password, temporary)
+        return {"message": "Password reset successfully"}
+
+    except Exception as e:
+        logger.error(f"Password reset error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to reset password",
         )
 
-    # Check permissions
-    if user.keycloak_id != current_user[
-        "keycloak_id"
-    ] and "admin" not in current_user.get("roles", []):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access audit logs",
+
+@router.post("/{user_id}/activate", dependencies=[Depends(require_admin)])
+async def activate_user(
+    user_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Activate user (Admin only)"""
+    try:
+        await keycloak_service.update_user(
+            user_id,
+            {
+                "enabled": True,
+                "attributes": {
+                    "activated_by": [current_user["username"]],
+                    "activated_at": [datetime.utcnow().isoformat()],
+                },
+            },
         )
 
-    query = (
-        select(UserAuditLog)
-        .where(UserAuditLog.user_id == user_id)
-        .order_by(UserAuditLog.timestamp.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+        return {"message": "User activated successfully"}
 
-    result = await db.execute(query)
-    audit_logs = result.scalars().all()
-
-    return [AuditLogResponse.from_orm(log) for log in audit_logs]
+    except Exception as e:
+        logger.error(f"User activation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to activate user",
+        )

@@ -1,36 +1,100 @@
 version: "3.9"
 
 services:
-  postgres:
-    image: postgres:15
-    container_name: keycloak_db
+  db:
+    image: postgres:17.6
+    container_name: db
     environment:
-      POSTGRES_DB: keycloak
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: keycloak
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - keycloak_net
+      POSTGRES_DB: ${POSTGRES_DB:-keycloak}
+      POSTGRES_USER: ${POSTGRES_USER:-keycloak}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-keycloak}
+      TZ: "UTC"
+    volumes: [db_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [stack]
+    ports: ["5432:5432"]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+  redis:
+    image: redis:8.2.1-alpine
+    container_name: redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis_data:/data]
+    networks: [stack]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    container_name: keycloak
-    command: start-dev
+    command: ["start-dev", "--import-realm"]
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-keycloak}
+      KC_DB_USERNAME: ${POSTGRES_USER:-keycloak}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-keycloak}
+      KC_IMPORT: /opt/keycloak/data/import/realm-export.json
+      TZ: "UTC"
     volumes:
-      - ./keycloak.conf:/opt/keycloak/conf/keycloak.conf:ro
-    ports:
-      - "8080:8080"
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
     depends_on:
-      - postgres
-    networks:
-      - keycloak_net
+      db:
+        condition: service_healthy
+    ports: ["8080:8080"]
+    networks: [stack]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.00'
+          memory: 1024M
+
+  # api:
+  #   build:
+  #     context: ./app
+  #     dockerfile: Dockerfile
+  #   environment:
+  #     APP_ENV: dev
+  #     DATABASE_URL: postgresql+psycopg:///keycloak?user=keycloak&password=keycloak&host=db&port=5432
+  #     REDIS_URL: redis://redis:6379/0
+  #     OIDC_ISSUER: http://keycloak:8080/realms/POC
+  #     OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+  #     OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     keycloak:
+  #       condition: service_started
+  #   ports: ["8000:8000"]
+  #   networks: [stack]
 
 volumes:
-  postgres_data:
+  db_data:
+  redis_data:
 
 networks:
-  keycloak_net:
+  stack:
+  redis_data:
+
