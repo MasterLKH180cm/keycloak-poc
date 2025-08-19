@@ -2,7 +2,6 @@
   "id": "fastapi-realm",
   "realm": "fastapi-realm",
   "enabled": true,
-  "passwordPolicy": "length(8) and upperCase(1) and lowerCase(1) and digits(1)",
   "attributes": {
     "session_max_lifespan": "36000",
     "session_idle_timeout": "1800",
