@@ -62,13 +62,13 @@ class UserCreate(UserBase):
 
 
 class UserResponse(UserBase):
-    id: str
-    keycloak_id: str
+    id: str = Field(..., description="User ID (same as Keycloak ID)")
+    keycloak_id: str = Field(..., description="Keycloak user ID (for internal use)")
     is_active: bool
     email_verified: bool
     last_login: Optional[datetime]
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True

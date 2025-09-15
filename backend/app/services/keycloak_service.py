@@ -176,31 +176,79 @@ class KeycloakService:
             logger.error(f"Logout failed: {e}")
             raise ValueError("Logout failed")
 
-    async def get_user_by_id(self, keycloak_id: str) -> Dict[str, Any]:
-        """Get user details from Keycloak"""
+    async def get_user_info(self, user_id: str) -> Dict[str, Any]:
+        """Get user details from Keycloak by user ID"""
         try:
-            user = self.admin_client.get_user(keycloak_id)
+            user = self.admin_client.get_user(user_id)
             return user
         except KeycloakError as e:
-            logger.error(f"Failed to get user {keycloak_id}: {e}")
+            logger.error(f"Failed to get user {user_id}: {e}")
             raise ValueError("User not found")
 
-    async def update_user(self, keycloak_id: str, user_data: Dict[str, Any]):
+    async def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
+        """Get user by username from Keycloak"""
+        try:
+            users = self.admin_client.get_users({"username": username})
+            return users[0] if users else None
+        except KeycloakError as e:
+            logger.error(f"Failed to get user by username {username}: {e}")
+            return None
+
+    async def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Get user by email from Keycloak"""
+        try:
+            users = self.admin_client.get_users({"email": email})
+            return users[0] if users else None
+        except KeycloakError as e:
+            logger.error(f"Failed to get user by email {email}: {e}")
+            return None
+
+    async def update_user(self, user_id: str, user_data: Dict[str, Any]):
         """Update user in Keycloak"""
         try:
-            self.admin_client.update_user(keycloak_id, user_data)
+            self.admin_client.update_user(user_id, user_data)
         except KeycloakError as e:
-            logger.error(f"Failed to update user {keycloak_id}: {e}")
+            logger.error(f"Failed to update user {user_id}: {e}")
             raise ValueError("Failed to update user")
 
-    async def _assign_user_role(self, keycloak_id: str, role: str):
+    async def list_users(
+        self, first: int = 0, max: int = 100, search: str = None, enabled: bool = None
+    ) -> list:
+        """List users from Keycloak with pagination"""
+        try:
+            query = {}
+            if search:
+                query["search"] = search
+            if enabled is not None:
+                query["enabled"] = enabled
+
+            users = self.admin_client.get_users(query=query, first=first, max=max)
+            return users
+        except KeycloakError as e:
+            logger.error(f"Failed to list users: {e}")
+            raise ValueError("Failed to list users")
+
+    async def reset_user_password(
+        self, user_id: str, password: str, temporary: bool = True
+    ):
+        """Reset user password in Keycloak"""
+        try:
+            self.admin_client.set_user_password(
+                user_id=user_id, password=password, temporary=temporary
+            )
+        except KeycloakError as e:
+            logger.error(f"Failed to reset password for user {user_id}: {e}")
+            raise ValueError("Failed to reset password")
+
+    async def _assign_user_role(self, user_id: str, role: str):
         """Assign role to user"""
         try:
-            # This is a simplified example - in production, you'd have proper role mapping
+            # This is a simplified example - in production,
+            # you'd have proper role mapping
             role_mapping = self.admin_client.get_realm_role(role)
-            self.admin_client.assign_realm_roles(keycloak_id, [role_mapping])
+            self.admin_client.assign_realm_roles(user_id, [role_mapping])
         except Exception as e:
-            logger.warning(f"Failed to assign role {role} to user {keycloak_id}: {e}")
+            logger.warning(f"Failed to assign role {role} to user {user_id}: {e}")
 
 
 # Global Keycloak service instance

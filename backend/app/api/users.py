@@ -167,7 +167,7 @@ async def get_user(
     """Get user by ID (Admin or own profile)"""
     try:
         # Check if user can access this profile
-        if user_id != current_user["keycloak_id"] and "admin" not in current_user.get(
+        if user_id != current_user["id"] and "admin" not in current_user.get(
             "roles", []
         ):
             raise HTTPException(
@@ -218,7 +218,7 @@ async def update_user(
     """Update user (Admin or own profile)"""
     try:
         # Check permissions
-        if user_id != current_user["keycloak_id"] and "admin" not in current_user.get(
+        if user_id != current_user["id"] and "admin" not in current_user.get(
             "roles", []
         ):
             raise HTTPException(

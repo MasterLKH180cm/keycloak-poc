@@ -116,16 +116,18 @@ async def refresh_token(
 
 @router.post("/logout")
 async def logout(
+    refresh_data: TokenRefreshRequest,
     current_user: dict = Depends(get_current_user),
     redis_client=Depends(get_redis),
 ):
     """Logout user and invalidate session"""
+    print(current_user, refresh_data)
     try:
         # Remove session from Redis
         await redis_client.delete_session(current_user["keycloak_id"])
 
         # Optionally logout from Keycloak
-        await keycloak_service.logout_user(current_user["keycloak_id"])
+        await keycloak_service.logout_user(refresh_data.refresh_token)
 
         return {"message": "Logged out successfully"}
 
@@ -141,7 +143,7 @@ async def get_current_user_profile(current_user: dict = Depends(get_current_user
     """Get current user profile"""
     try:
         # Get user info from Keycloak
-        userinfo = await keycloak_service.get_user_info(current_user["keycloak_id"])
+        userinfo = await keycloak_service.get_user_info(current_user["id"])
 
         user_response = UserResponse(
             id=userinfo["id"],
