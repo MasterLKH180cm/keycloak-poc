@@ -453,6 +453,73 @@
 					"response": []
 				},
 				{
+					"name": "Reset User Password (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "password",
+									"value": "NewPassword123!",
+									"type": "text"
+								},
+								{
+									"key": "temporary",
+									"value": "true",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{created_user_id}}/reset-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{created_user_id}}",
+								"reset-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Activate User (Admin)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{created_user_id}}/activate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{created_user_id}}",
+								"activate"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Create Admin",
 					"event": [
 						{
@@ -531,11 +598,11 @@
 		},
 		{
 			"key": "username",
-			"value": "testuser"
+			"value": "jacky"
 		},
 		{
 			"key": "password",
-			"value": "testpassword"
+			"value": "password123"
 		},
 		{
 			"key": "new_username",
@@ -543,12 +610,7 @@
 		},
 		{
 			"key": "new_adminname",
-			"value": "newadmin",
-			"type": "string",
-			"description": {
-				"content": "",
-				"type": "text/plain"
-			}
+			"value": "newadmin"
 		},
 		{
 			"key": "new_email",
@@ -556,16 +618,11 @@
 		},
 		{
 			"key": "new_adminemail",
-			"value": "newadmin@example.com",
-			"type": "string",
-			"description": {
-				"content": "",
-				"type": "text/plain"
-			}
+			"value": "newadmin@example.com"
 		},
 		{
 			"key": "new_password",
-			"value": "newpassword123"
+			"value": "Newpassword123@"
 		},
 		{
 			"key": "access_token",
@@ -589,11 +646,11 @@
 		},
 		{
 			"key": "admin_username",
-			"value": "admin"
+			"value": "kc-admin"
 		},
 		{
 			"key": "admin_password",
-			"value": "admin"
+			"value": "kc-admin"
 		}
 	]
 }

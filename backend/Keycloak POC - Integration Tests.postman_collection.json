@@ -1,0 +1,1598 @@
+{
+	"info": {
+		"_postman_id": "51b4a387-f9a5-41d5-b45a-9f2d9441e5f7",
+		"name": "Keycloak POC - Integration Tests",
+		"description": "Comprehensive integration test flows for Keycloak POC API covering authentication, user management, and various user scenarios",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "47673802",
+		"_collection_link": "https://jacky850628-9550001.postman.co/workspace/1de1b23b-f4c4-4d4c-8430-595482c9a230/collection/47673802-51b4a387-f9a5-41d5-b45a-9f2d9441e5f7?action=share&source=collection_link&creator=47673802"
+	},
+	"item": [
+		{
+			"name": "Flow 1: Admin Complete User Management Workflow",
+			"item": [
+				{
+					"name": "1.1 Admin Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Admin login successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains access token', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('access_token');",
+									"    pm.expect(response.access_token).to.not.be.empty;",
+									"});",
+									"",
+									"pm.test('Response contains user information', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('user');",
+									"    pm.expect(response.user).to.have.property('id');",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('admin_access_token', response.access_token);",
+									"    pm.collectionVariables.set('admin_refresh_token', response.refresh_token);",
+									"    pm.collectionVariables.set('admin_user_id', response.user.id);",
+									"    pm.collectionVariables.set('admin_keycloak_id', response.user.keycloak_id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{admin_username}}\",\n    \"password\": \"{{admin_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.2 Create New User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('User creation successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains user ID', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.collectionVariables.set('test_user_id', response.id);",
+									"});",
+									"",
+									"pm.test('User has correct role', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.role).to.equal('user');",
+									"});",
+									"",
+									"pm.test('User is active by default', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.is_active).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"integration_test_user\",\n    \"email\": \"integration_test@example.com\",\n    \"password\": \"TestPassword123!\",\n    \"first_name\": \"Integration\",\n    \"last_name\": \"TestUser\",\n    \"department\": \"QA\",\n    \"role\": \"user\",\n    \"license_number\": \"LIC_123456\",\n    \"npi_number\": \"0123456789\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.3 List All Users",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Users list retrieved successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response is an array', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.be.an('array');",
+									"});",
+									"",
+									"pm.test('Created user exists in list', function () {",
+									"    const response = pm.response.json();",
+									"    const testUserId = pm.collectionVariables.get('test_user_id');",
+									"    const userExists = response.some(user => user.id === testUserId);",
+									"    pm.expect(userExists).to.be.true;",
+									"});",
+									"",
+									"pm.test('Users have required fields', function () {",
+									"    const response = pm.response.json();",
+									"    if (response.length > 0) {",
+									"        const user = response[0];",
+									"        pm.expect(user).to.have.property('id');",
+									"        pm.expect(user).to.have.property('username');",
+									"        pm.expect(user).to.have.property('email');",
+									"        pm.expect(user).to.have.property('is_active');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/?skip=0&limit=100",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "100"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.4 Get Specific User Details",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('User details retrieved successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('User details match created user', function () {",
+									"    const response = pm.response.json();",
+									"    const testUserId = pm.collectionVariables.get('test_user_id');",
+									"    pm.expect(response.id).to.equal(testUserId);",
+									"    pm.expect(response.first_name).to.equal('Integration');",
+									"    pm.expect(response.last_name).to.equal('TestUser');",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{test_user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{test_user_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.5 Update User Information",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('User update successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('User information updated correctly', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.first_name).to.equal('Integration Updated');",
+									"    pm.expect(response.department).to.equal('Engineering');",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"first_name\": \"Integration Updated\",\n    \"last_name\": \"TestUser Updated\",\n    \"license_number\": \"LIC_UPDATED_{{$timestamp}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{test_user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{test_user_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.6 Get User Audit Logs",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Audit logs retrieved successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Audit logs contain user activities', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.be.an('array');",
+									"    // Should contain creation and update events",
+									"    if (response.length > 0) {",
+									"        const log = response[0];",
+									"        pm.expect(log).to.have.property('action');",
+									"        pm.expect(log).to.have.property('timestamp');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{test_user_id}}/audit-logs?skip=0&limit=50",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{test_user_id}}",
+								"audit-logs"
+							],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.7 Reset User Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Password reset successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Success message provided', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('message');",
+									"    pm.expect(response.message).to.include('Password reset successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "password",
+									"value": "ResetPassword123!",
+									"type": "text"
+								},
+								{
+									"key": "temporary",
+									"value": "true",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{test_user_id}}/reset-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{test_user_id}}",
+								"reset-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.8 Activate User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('User activation successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Success message provided', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('message');",
+									"    pm.expect(response.message).to.include('User activated successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{test_user_id}}/activate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{test_user_id}}",
+								"activate"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Tests admin login, user creation, listing, updates, and deactivation",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Flow 2: Regular User Authentication & Profile Management",
+			"item": [
+				{
+					"name": "2.1 Regular User Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Regular user login successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Access token provided', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('access_token');",
+									"    pm.collectionVariables.set('user_access_token', response.access_token);",
+									"    pm.collectionVariables.set('user_refresh_token', response.refresh_token);",
+									"});",
+									"",
+									"pm.test('User role is not admin', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.user.role).to.not.equal('admin');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{username}}\",\n    \"password\": \"{{password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2.2 Get Current User Profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('User profile retrieved successfully', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Profile contains user information', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('username');",
+									"    pm.expect(response).to.have.property('email');",
+									"    pm.expect(response).to.have.property('first_name');",
+									"    pm.expect(response).to.have.property('last_name');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2.3 Attempt Admin Operation (Should Fail)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Regular user cannot access admin endpoints', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([403, 401]);",
+									"});",
+									"",
+									"pm.test('Error message indicates insufficient permissions', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{user_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/?skip=0&limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Tests regular user login, profile access, and self-service operations"
+		},
+		{
+			"name": "Flow 3: Token Management & Security",
+			"item": [
+				{
+					"name": "3.1 Refresh Access Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Token refresh successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('New access token provided', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('access_token');",
+									"    pm.expect(response.access_token).to.not.be.empty;",
+									"    pm.collectionVariables.set('refreshed_access_token', response.access_token);",
+									"});",
+									"",
+									"pm.test('New token is different from old token', function () {",
+									"    const response = pm.response.json();",
+									"    const oldToken = pm.collectionVariables.get('user_access_token');",
+									"    pm.expect(response.access_token).to.not.equal(oldToken);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh_token\": \"{{user_refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/refresh",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"refresh"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3.2 Use Refreshed Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Refreshed token works correctly', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('User profile accessible with new token', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('username');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{refreshed_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3.3 Logout User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Logout successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{refreshed_access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh_token\": \"{{user_refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/logout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3.4 Verify Token Invalidation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Token is invalidated after logout', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+									"});",
+									"",
+									"pm.test('Error indicates invalid token', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{refreshed_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"me"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Tests token refresh, logout, and security scenarios"
+		},
+		{
+			"name": "Flow 4: Advanced User Management & Filtering",
+			"item": [
+				{
+					"name": "4.1 Admin Re-login for Advanced Operations",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('admin_access_token', response.access_token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{admin_username}}\",\n    \"password\": \"{{admin_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4.2 Create Multiple Users for Testing",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Bulk user creation successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('bulk_user_id_1', response.id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"engineering_user\",\n    \"email\": \"eng_user@example.com\",\n    \"password\": \"EngPassword123!\",\n    \"first_name\": \"Engineering\",\n    \"last_name\": \"User\",\n    \"department\": \"Engineering\",\n    \"role\": \"user\",\n    \"license_number\": \"ENG_{{$timestamp}}\",\n    \"npi_number\": \"{{$timestamp}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4.3 Create Admin User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Admin user creation successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('User has admin role', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.role).to.equal('admin');",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('new_admin_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"new_admin\",\n    \"email\": \"newadmin@example.com\",\n    \"password\": \"AdminPassword123!\",\n    \"first_name\": \"New\",\n    \"last_name\": \"Admin\",\n    \"department\": \"IT\",\n    \"role\": \"admin\",\n    \"license_number\": \"ADMIN_123456\",\n    \"npi_number\": \"9999999999\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4.4 Filter Users by Department",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Department filtering works correctly', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('All returned users belong to Engineering department', function () {",
+									"    const response = pm.response.json();",
+									"    response.forEach(user => {",
+									"        if (user.department) {",
+									"            pm.expect(user.department).to.equal('Engineering');",
+									"        }",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/?department=Engineering&is_active=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							],
+							"query": [
+								{
+									"key": "department",
+									"value": "Engineering"
+								},
+								{
+									"key": "is_active",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4.5 Filter Active Users Only",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Active users filter works', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('All returned users are active', function () {",
+									"    const response = pm.response.json();",
+									"    response.forEach(user => {",
+									"        pm.expect(user.is_active).to.be.true;",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/?is_active=true&skip=0&limit=50",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							],
+							"query": [
+								{
+									"key": "is_active",
+									"value": "true"
+								},
+								{
+									"key": "skip",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "50"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Tests advanced user management features with filtering and bulk operations"
+		},
+		{
+			"name": "Flow 5: Error Handling & Edge Cases",
+			"item": [
+				{
+					"name": "5.1 Login with Invalid Credentials",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Invalid login returns appropriate error', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([401, 400]);",
+									"});",
+									"",
+									"pm.test('No access token provided for invalid login', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.not.have.property('access_token');",
+									"});",
+									"",
+									"pm.test('Error message is present', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"nonexistent_user\",\n    \"password\": \"wrong_password\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "5.2 Access Protected Endpoint Without Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Unauthorized access returns 401', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+									"});",
+									"",
+									"pm.test('Authentication error message provided', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "5.3 Create User with Duplicate Username",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Duplicate username returns conflict error', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([400, 409, 422]);",
+									"});",
+									"",
+									"pm.test('Error indicates duplicate username', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{admin_username}}\",\n    \"email\": \"duplicate_test@example.com\",\n    \"password\": \"DuplicateTest123!\",\n    \"first_name\": \"Duplicate\",\n    \"last_name\": \"Test\",\n    \"department\": \"Test\",\n    \"role\": \"user\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "5.4 Update Non-existent User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Non-existent user update returns 404', function () {",
+									"    pm.expect(pm.response.code).to.equal(404);",
+									"});",
+									"",
+									"pm.test('Not found error message provided', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"first_name\": \"Non\",\n    \"last_name\": \"Existent\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/99999999-9999-9999-9999-999999999999",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"99999999-9999-9999-9999-999999999999"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "5.5 Use Invalid Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Invalid refresh token returns error', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([400, 401]);",
+									"});",
+									"",
+									"pm.test('Invalid token error message provided', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh_token\": \"invalid_refresh_token_12345\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/refresh",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"refresh"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Tests error scenarios and edge cases"
+		},
+		{
+			"name": "Flow 6: Cleanup Operations",
+			"item": [
+				{
+					"name": "6.1 Deactivate Test User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('User deactivation successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('User marked as inactive', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.is_active).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{test_user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{test_user_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "6.2 Verify User is Deactivated",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Deactivated user details retrieved', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('User shows as inactive', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.is_active).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{test_user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{test_user_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "6.3 Deactivate Bulk Created Users",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Bulk user deactivation successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{bulk_user_id_1}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{bulk_user_id_1}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "6.4 Final Admin Logout",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Final admin logout successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"refresh_token\": \"{{admin_refresh_token}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/logout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Cleanup test data and verify deletion"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set timestamps for unique data generation",
+					"pm.globals.set('timestamp', Date.now());"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test to track overall success",
+					"pm.test('Response time is acceptable', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+					"});",
+					"",
+					"// Log response for debugging",
+					"if (pm.response.code >= 400) {",
+					"    console.log('Error Response:', pm.response.text());",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api/v1"
+		},
+		{
+			"key": "username",
+			"value": "testuser"
+		},
+		{
+			"key": "password",
+			"value": "testpassword"
+		},
+		{
+			"key": "admin_username",
+			"value": "kc-admin"
+		},
+		{
+			"key": "admin_password",
+			"value": "kc-admin"
+		},
+		{
+			"key": "admin_access_token",
+			"value": ""
+		},
+		{
+			"key": "admin_refresh_token",
+			"value": ""
+		},
+		{
+			"key": "user_access_token",
+			"value": ""
+		},
+		{
+			"key": "user_refresh_token",
+			"value": ""
+		},
+		{
+			"key": "refreshed_access_token",
+			"value": ""
+		},
+		{
+			"key": "test_user_id",
+			"value": ""
+		},
+		{
+			"key": "bulk_user_id_1",
+			"value": ""
+		},
+		{
+			"key": "new_admin_id",
+			"value": ""
+		},
+		{
+			"key": "admin_user_id",
+			"value": ""
+		},
+		{
+			"key": "admin_keycloak_id",
+			"value": ""
+		}
+	]
+}

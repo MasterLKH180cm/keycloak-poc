@@ -257,28 +257,43 @@ async def update_user(
                 [update_data["npi_number"]] if update_data["npi_number"] else []
             )
 
+        # Get current user info to preserve existing data
+        current_user_info = await keycloak_service.get_user_info(user_id)
+        print("Current user info before update:", current_user_info)
+        print("Current user email before update:", current_user_info.get("email"))
+
+        # Preserve email if not being updated
+        if "email" not in keycloak_update_data and current_user_info.get("email"):
+            keycloak_update_data["email"] = current_user_info["email"]
+
         if attributes:
-            # Get current attributes to merge
-            current_user_info = await keycloak_service.get_user_info(user_id)
             current_attributes = current_user_info.get("attributes", {})
             current_attributes.update(attributes)
             current_attributes["updated_by"] = [current_user["username"]]
             keycloak_update_data["attributes"] = current_attributes
+
+        # Debug: Print what we're sending to Keycloak
+        print("Updating user with data:", keycloak_update_data)
 
         # Update user in Keycloak
         await keycloak_service.update_user(user_id, keycloak_update_data)
 
         # Get updated user info
         updated_user = await keycloak_service.get_user_info(user_id)
-
+        print("Full updated_user response:", updated_user)
+        print("Email field specifically:", repr(updated_user.get("email")))
+        print(
+            "All keys in updated_user:",
+            list(updated_user.keys()) if updated_user else "None",
+        )
         user_response = UserResponse(
-            id=updated_user["id"],
-            keycloak_id=updated_user["id"],
-            username=updated_user["username"],
-            email=updated_user["email"],
+            id=updated_user.get("id", ""),
+            keycloak_id=updated_user.get("id", ""),
+            username=updated_user.get("username", ""),
+            email=updated_user.get("email", ""),
             first_name=updated_user.get("firstName", ""),
             last_name=updated_user.get("lastName", ""),
-            email_verified=updated_user.get("emailVerified", False),
+            email_verified=updated_user.get("emailVerified", True),
             is_active=updated_user.get("enabled", True),
             role=updated_user.get("attributes", {}).get("role", ["user"])[0]
             if updated_user.get("attributes", {}).get("role")
