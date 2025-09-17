@@ -2,7 +2,6 @@ import logging
 from typing import Any, Dict, Optional
 
 from app.core.config import settings
-from app.schemas.user import UserCreate
 from keycloak import KeycloakAdmin, KeycloakOpenID
 from keycloak.exceptions import KeycloakError
 
@@ -22,7 +21,7 @@ class KeycloakService:
                 server_url=settings.keycloak_server_url,
                 username=settings.keycloak_admin_username,
                 password=settings.keycloak_admin_password,
-                realm_name="master",  # Use master realm for admin operations
+                realm_name=settings.keycloak_realm,
                 verify=True,
             )
 
@@ -57,42 +56,16 @@ class KeycloakService:
         except Exception as e:
             logger.warning(f"Could not retrieve well-known configuration: {e}")
 
-    async def create_user(self, user_data: UserCreate) -> str:
+    async def create_user(self, user_data: Dict[str, Any]) -> str:
         """Create user in Keycloak and return Keycloak user ID"""
         try:
-            keycloak_user = {
-                "username": user_data.username,
-                "email": user_data.email,
-                "firstName": user_data.first_name,
-                "lastName": user_data.last_name,
-                "enabled": True,
-                "emailVerified": False,
-                "credentials": [
-                    {
-                        "type": "password",
-                        "value": user_data.password,
-                        "temporary": False,
-                    }
-                ],
-                "attributes": {
-                    "department": [user_data.department]
-                    if user_data.department
-                    else [],
-                    "role": [user_data.role],
-                    "license_number": [user_data.license_number]
-                    if user_data.license_number
-                    else [],
-                    "npi_number": [user_data.npi_number]
-                    if user_data.npi_number
-                    else [],
-                },
-            }
-
             # Create user in Keycloak
-            keycloak_id = self.admin_client.create_user(keycloak_user)
+            keycloak_id = self.admin_client.create_user(user_data)
 
-            # Assign default role
-            await self._assign_user_role(keycloak_id, user_data.role)
+            # Assign default role if specified
+            user_role = user_data.get("attributes", {}).get("role", [])
+            if user_role and len(user_role) > 0:
+                await self._assign_user_role(keycloak_id, user_role[0])
 
             logger.info(f"User created in Keycloak with ID: {keycloak_id}")
             return keycloak_id
@@ -216,13 +189,13 @@ class KeycloakService:
     ) -> list:
         """List users from Keycloak with pagination"""
         try:
-            query = {}
+            query = {"first": first, "max": max}
             if search:
                 query["search"] = search
             if enabled is not None:
                 query["enabled"] = enabled
 
-            users = self.admin_client.get_users(query=query, first=first, max=max)
+            users = self.admin_client.get_users(query=query)
             return users
         except KeycloakError as e:
             logger.error(f"Failed to list users: {e}")

@@ -34,6 +34,7 @@ async def create_user(
             )
 
         # Create user in Keycloak
+        print(current_user)
         keycloak_user_data = {
             "username": user_data.username,
             "email": user_data.email,
@@ -116,7 +117,7 @@ async def list_users(
         users = await keycloak_service.list_users(
             first=skip, max=limit, search=None, enabled=is_active
         )
-
+        print(users)
         user_responses = []
         for user in users:
             # Apply filters
@@ -132,7 +133,7 @@ async def list_users(
                 id=user["id"],
                 keycloak_id=user["id"],
                 username=user["username"],
-                email=user["email"],
+                email=user.get("email", ""),
                 first_name=user.get("firstName", ""),
                 last_name=user.get("lastName", ""),
                 email_verified=user.get("emailVerified", False),
@@ -167,7 +168,7 @@ async def get_user(
     """Get user by ID (Admin or own profile)"""
     try:
         # Check if user can access this profile
-        if user_id != current_user["id"] and "admin" not in current_user.get(
+        if user_id != current_user["keycloak_id"] and "admin" not in current_user.get(
             "roles", []
         ):
             raise HTTPException(
@@ -218,7 +219,7 @@ async def update_user(
     """Update user (Admin or own profile)"""
     try:
         # Check permissions
-        if user_id != current_user["id"] and "admin" not in current_user.get(
+        if user_id != current_user["keycloak_id"] and "admin" not in current_user.get(
             "roles", []
         ):
             raise HTTPException(

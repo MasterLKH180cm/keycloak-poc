@@ -143,8 +143,9 @@ async def get_current_user_profile(current_user: dict = Depends(get_current_user
     """Get current user profile"""
     try:
         # Get user info from Keycloak
-        userinfo = await keycloak_service.get_user_info(current_user["id"])
-
+        print(current_user)
+        userinfo = await keycloak_service.get_user_info(current_user["keycloak_id"])
+        print(userinfo)
         user_response = UserResponse(
             id=userinfo["id"],
             keycloak_id=userinfo["id"],

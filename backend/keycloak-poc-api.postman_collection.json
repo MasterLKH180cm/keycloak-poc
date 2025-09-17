@@ -5,7 +5,7 @@
 		"description": "Complete API collection for Keycloak POC with authentication and user management",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "47673802",
-		"_collection_link": "https://jacky850628-9550001.postman.co/workspace/%25E6%259D%258E%25E5%259C%258B%25E5%25BC%2598's-Workspace~1de1b23b-f4c4-4d4c-8430-595482c9a230/collection/47673802-eac85e5e-73f6-47a1-973e-d92ef86e5af6?action=share&source=collection_link&creator=47673802"
+		"_collection_link": "https://jacky850628-9550001.postman.co/workspace/1de1b23b-f4c4-4d4c-8430-595482c9a230/collection/47673802-eac85e5e-73f6-47a1-973e-d92ef86e5af6?action=share&source=collection_link&creator=47673802"
 	},
 	"item": [
 		{
@@ -20,10 +20,10 @@
 								"exec": [
 									"if (pm.response.code === 200) {",
 									"    const response = pm.response.json();",
-									"    pm.environment.set('access_token', response.access_token);",
-									"    pm.environment.set('refresh_token', response.refresh_token);",
-									"    pm.environment.set('user_id', response.user.id);",
-									"    pm.environment.set('keycloak_id', response.user.keycloak_id);",
+									"    pm.collectionVariables.set('access_token', response.access_token);",
+									"    pm.collectionVariables.set('refresh_token', response.refresh_token);",
+									"    pm.collectionVariables.set('user_id', response.user.id);",
+									"    pm.collectionVariables.set('keycloak_id', response.user.keycloak_id);",
 									"}"
 								],
 								"type": "text/javascript",
@@ -222,7 +222,7 @@
 			"name": "User Management",
 			"item": [
 				{
-					"name": "Create User (Admin)",
+					"name": "Create User",
 					"event": [
 						{
 							"listen": "test",
@@ -230,10 +230,11 @@
 								"exec": [
 									"if (pm.response.code === 200) {",
 									"    const response = pm.response.json();",
-									"    pm.environment.set('created_user_id', response.id);",
+									"    pm.collectionVariables.set('created_user_id', response.id);",
 									"}"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -310,7 +311,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/users/?skip=0&limit=10&department=Engineering&role=user&is_active=true",
+							"raw": "{{base_url}}/users/?skip=0&limit=10&department=Engineering&is_active=true",
 							"host": [
 								"{{base_url}}"
 							],
@@ -332,10 +333,6 @@
 									"value": "Engineering"
 								},
 								{
-									"key": "role",
-									"value": "user"
-								},
-								{
 									"key": "is_active",
 									"value": "true"
 								}
@@ -355,13 +352,13 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/users/{{user_id}}",
+							"raw": "{{base_url}}/users/{{created_user_id}}",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"users",
-								"{{user_id}}"
+								"{{created_user_id}}"
 							]
 						}
 					},
@@ -454,6 +451,55 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Create Admin",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('created_user_id', response.id);",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{new_adminname}}\",\n    \"email\": \"{{new_adminemail}}\",\n    \"password\": \"{{new_password}}\",\n    \"first_name\": \"QAQWE\",\n    \"last_name\": \"RRRRR\",\n    \"department\": \"Engineering\",\n    \"role\": \"admin\",\n    \"license_number\": \"LIC123456999\",\n    \"npi_number\": \"9999999999\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								""
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		}
@@ -496,8 +542,26 @@
 			"value": "newuser"
 		},
 		{
+			"key": "new_adminname",
+			"value": "newadmin",
+			"type": "string",
+			"description": {
+				"content": "",
+				"type": "text/plain"
+			}
+		},
+		{
 			"key": "new_email",
 			"value": "newuser@example.com"
+		},
+		{
+			"key": "new_adminemail",
+			"value": "newadmin@example.com",
+			"type": "string",
+			"description": {
+				"content": "",
+				"type": "text/plain"
+			}
 		},
 		{
 			"key": "new_password",
@@ -525,13 +589,11 @@
 		},
 		{
 			"key": "admin_username",
-			"value": "admin",
-			"type": "string"
+			"value": "admin"
 		},
 		{
 			"key": "admin_password",
-			"value": "admin",
-			"type": "string"
+			"value": "admin"
 		}
 	]
 }
