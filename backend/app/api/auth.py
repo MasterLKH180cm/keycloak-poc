@@ -3,12 +3,15 @@ from datetime import datetime
 
 from app.core.security import get_current_user
 from app.db.redis import get_redis
-from app.schemas.user import (
+from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
+    LogoutRequest,
+    LogoutResponse,
     TokenRefreshRequest,
-    UserResponse,
+    TokenRefreshResponse,
 )
+from app.schemas.user import UserResponse
 from app.services.keycloak_service import keycloak_service
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
@@ -65,11 +68,7 @@ async def login(
             first_name=userinfo.get("given_name", ""),
             last_name=userinfo.get("family_name", ""),
             email_verified=userinfo.get("email_verified", False),
-            is_active=userinfo.get("enabled", True),
-            role=userinfo.get("role", "user"),
-            department=userinfo.get("department"),
-            license_number=userinfo.get("license_number"),
-            npi_number=userinfo.get("npi_number"),
+            enable=userinfo.get("enabled", True),
             created_at=None,
             updated_at=None,
             last_login=datetime.utcnow(),
@@ -94,7 +93,7 @@ async def login(
         )
 
 
-@router.post("/refresh")
+@router.post("/refresh", response_model=TokenRefreshResponse)
 async def refresh_token(
     refresh_data: TokenRefreshRequest, redis_client=Depends(get_redis)
 ):
@@ -102,34 +101,31 @@ async def refresh_token(
     try:
         token_result = await keycloak_service.refresh_token(refresh_data.refresh_token)
 
-        return {
-            "access_token": token_result["access_token"],
-            "refresh_token": token_result.get(
-                "refresh_token", refresh_data.refresh_token
-            ),
-            "expires_in": token_result["expires_in"],
-            "token_type": "bearer",
-        }
+        return TokenRefreshResponse(
+            access_token=token_result["access_token"],
+            refresh_token=token_result.get("refresh_token", refresh_data.refresh_token),
+            expires_in=token_result["expires_in"],
+            token_type="bearer",
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
 
-@router.post("/logout")
+@router.post("/logout", response_model=LogoutResponse)
 async def logout(
-    refresh_data: TokenRefreshRequest,
+    logout_data: LogoutRequest,
     current_user: dict = Depends(get_current_user),
     redis_client=Depends(get_redis),
 ):
     """Logout user and invalidate session"""
-    print(current_user, refresh_data)
     try:
         # Remove session from Redis
         await redis_client.delete_session(current_user["keycloak_id"])
 
         # Optionally logout from Keycloak
-        await keycloak_service.logout_user(refresh_data.refresh_token)
+        await keycloak_service.logout_user(logout_data.refresh_token)
 
-        return {"message": "Logged out successfully"}
+        return LogoutResponse(message="Logged out successfully")
 
     except Exception as e:
         logger.error(f"Logout error: {e}")
@@ -154,15 +150,7 @@ async def get_current_user_profile(current_user: dict = Depends(get_current_user
             first_name=userinfo.get("firstName", ""),
             last_name=userinfo.get("lastName", ""),
             email_verified=userinfo.get("emailVerified", False),
-            is_active=userinfo.get("enabled", True),
-            role=userinfo.get("attributes", {}).get("role", ["user"])[0]
-            if userinfo.get("attributes", {}).get("role")
-            else "user",
-            department=userinfo.get("attributes", {}).get("department", [None])[0],
-            license_number=userinfo.get("attributes", {}).get("license_number", [None])[
-                0
-            ],
-            npi_number=userinfo.get("attributes", {}).get("npi_number", [None])[0],
+            enable=userinfo.get("enabled", True),
             created_at=None,
             updated_at=None,
             last_login=None,

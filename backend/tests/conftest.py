@@ -100,10 +100,6 @@ def sample_user_data():
         "password": "SecurePassword123!",
         "first_name": "Test",
         "last_name": "User",
-        "department": "Cardiology",
-        "role": "clinician",
-        "license_number": "LIC123456",
-        "npi_number": "1234567890",
     }
 
 

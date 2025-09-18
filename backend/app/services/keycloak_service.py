@@ -272,10 +272,18 @@ class KeycloakService:
     async def _assign_user_role(self, user_id: str, role: str):
         """Assign role to user"""
         try:
-            # This is a simplified example - in production,
-            # you'd have proper role mapping
-            role_mapping = self.admin_client.get_realm_role(role)
-            self.admin_client.assign_realm_roles(user_id, [role_mapping])
+            # Get the realm role (user or admin)
+            realm_role = self.admin_client.get_realm_role(role)
+
+            # Assign the realm role to the user
+            self.admin_client.assign_realm_roles(user_id, [realm_role])
+
+            logger.info(f"Assigned role '{role}' to user {user_id}")
+
+        except KeycloakError as e:
+            logger.error(f"Failed to assign role {role} to user {user_id}: {e}")
+            # Don't raise exception here as user is already created
+            # Just log the warning
         except Exception as e:
             logger.warning(f"Failed to assign role {role} to user {user_id}: {e}")
 

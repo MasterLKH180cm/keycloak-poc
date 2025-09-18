@@ -316,7 +316,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/users/?skip=0&limit=10&department=Engineering&is_active=true",
+							"raw": "{{base_url}}/users/?skip=0&limit=10&department=Engineering&enable=true",
 							"host": [
 								"{{base_url}}"
 							],
@@ -338,7 +338,7 @@
 									"value": "Engineering"
 								},
 								{
-									"key": "is_active",
+									"key": "enable",
 									"value": "true"
 								}
 							]

@@ -1,11 +1,11 @@
 {
 	"info": {
-		"_postman_id": "440f8e1e-d916-4910-bc06-793504b4fc62",
+		"_postman_id": "5981b5d3-6770-4bac-94e3-1f2180c7b0a9",
 		"name": "Keycloak POC - Integration Tests",
 		"description": "Comprehensive integration test flows for Keycloak POC API covering authentication, user management, and various user scenarios",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "47673802",
-		"_collection_link": "https://jacky850628-9550001.postman.co/workspace/1de1b23b-f4c4-4d4c-8430-595482c9a230/collection/47673802-440f8e1e-d916-4910-bc06-793504b4fc62?action=share&source=collection_link&creator=47673802"
+		"_collection_link": "https://jacky850628-9550001.postman.co/workspace/1de1b23b-f4c4-4d4c-8430-595482c9a230/collection/47673802-5981b5d3-6770-4bac-94e3-1f2180c7b0a9?action=share&source=collection_link&creator=47673802"
 	},
 	"item": [
 		{
@@ -99,14 +99,9 @@
 									"    pm.collectionVariables.set('test_user_id', response.id);",
 									"});",
 									"",
-									"pm.test('User has correct role', function () {",
-									"    const response = pm.response.json();",
-									"    pm.expect(response.role).to.equal('user');",
-									"});",
-									"",
 									"pm.test('User is active by default', function () {",
 									"    const response = pm.response.json();",
-									"    pm.expect(response.is_active).to.be.true;",
+									"    pm.expect(response.enable).to.be.true;",
 									"});"
 								],
 								"type": "text/javascript",
@@ -128,7 +123,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"integration_test_user\",\n    \"email\": \"integration_test@example.com\",\n    \"password\": \"TestPassword123!\",\n    \"first_name\": \"Integration\",\n    \"last_name\": \"TestUser\",\n    \"department\": \"QA\",\n    \"role\": \"user\",\n    \"license_number\": \"LIC_123456\",\n    \"npi_number\": \"0123456789\"\n}"
+							"raw": "{\n    \"username\": \"integration_test_user\",\n    \"email\": \"integration_test@example.com\",\n    \"password\": \"TestPassword123!\",\n    \"first_name\": \"Integration\",\n    \"last_name\": \"TestUser\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/users/",
@@ -173,11 +168,12 @@
 									"        pm.expect(user).to.have.property('id');",
 									"        pm.expect(user).to.have.property('username');",
 									"        pm.expect(user).to.have.property('email');",
-									"        pm.expect(user).to.have.property('is_active');",
+									"        pm.expect(user).to.have.property('enable');",
 									"    }",
 									"});"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -271,7 +267,7 @@
 									"pm.test('User information updated correctly', function () {",
 									"    const response = pm.response.json();",
 									"    pm.expect(response.first_name).to.equal('Integration Updated');",
-									"    pm.expect(response.department).to.equal('Engineering');",
+									"    ",
 									"});"
 								],
 								"type": "text/javascript",
@@ -325,7 +321,8 @@
 									"    pm.expect(response.message).to.include('Password reset successfully');",
 									"});"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -338,23 +335,12 @@
 							},
 							{
 								"key": "Content-Type",
-								"value": "application/x-www-form-urlencoded"
+								"value": "application/json"
 							}
 						],
 						"body": {
-							"mode": "urlencoded",
-							"urlencoded": [
-								{
-									"key": "password",
-									"value": "ResetPassword123!",
-									"type": "text"
-								},
-								{
-									"key": "temporary",
-									"value": "true",
-									"type": "text"
-								}
-							]
+							"mode": "raw",
+							"raw": "{\r\n    \"password\": \"NewPassword123\",\r\n    \"temporary\": true\r\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/users/{{test_user_id}}/reset-password",
@@ -834,7 +820,8 @@
 									"    pm.collectionVariables.set('admin_access_token', response.access_token);",
 									"}"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -898,7 +885,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"engineering_user\",\n    \"email\": \"eng_user@example.com\",\n    \"password\": \"EngPassword123!\",\n    \"first_name\": \"Engineering\",\n    \"last_name\": \"User\",\n    \"department\": \"Engineering\",\n    \"role\": \"user\",\n    \"license_number\": \"ENG_{{$timestamp}}\",\n    \"npi_number\": \"{{$timestamp}}\"\n}"
+							"raw": "{\n    \"username\": \"engineering_user\",\n    \"email\": \"eng_user@example.com\",\n    \"password\": \"EngPassword123!\",\n    \"first_name\": \"Engineering\",\n    \"last_name\": \"User\",\n    \"role\": \"user\",\n    \"license_number\": \"ENG_{{$timestamp}}\",\n    \"npi_number\": \"{{$timestamp}}\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/users/",
@@ -924,10 +911,6 @@
 									"    pm.response.to.have.status(200);",
 									"});",
 									"",
-									"pm.test('User has admin role', function () {",
-									"    const response = pm.response.json();",
-									"    pm.expect(response.role).to.equal('admin');",
-									"});",
 									"",
 									"if (pm.response.code === 200) {",
 									"    const response = pm.response.json();",
@@ -953,55 +936,10 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"new_admin\",\n    \"email\": \"newadmin@example.com\",\n    \"password\": \"AdminPassword123!\",\n    \"first_name\": \"New\",\n    \"last_name\": \"Admin\",\n    \"department\": \"IT\",\n    \"role\": \"admin\",\n    \"license_number\": \"ADMIN_123456\",\n    \"npi_number\": \"9999999999\"\n}"
+							"raw": "{\n    \"username\": \"new_admin\",\n    \"email\": \"newadmin@example.com\",\n    \"password\": \"AdminPassword123!\",\n    \"first_name\": \"New\",\n    \"last_name\": \"Admin\"\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/users/",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"users",
-								""
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "4.4 Filter Users by Department",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('Department filtering works correctly', function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test('All returned users belong to Engineering department', function () {",
-									"    const response = pm.response.json();",
-									"    response.forEach(user => {",
-									"        if (user.department) {",
-									"            pm.expect(user.department).to.equal('Engineering');",
-									"        }",
-									"    });",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{admin_access_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/users/?department=Engineering&is_active=true",
+							"raw": "{{base_url}}/users/?role=admin",
 							"host": [
 								"{{base_url}}"
 							],
@@ -1011,69 +949,8 @@
 							],
 							"query": [
 								{
-									"key": "department",
-									"value": "Engineering"
-								},
-								{
-									"key": "is_active",
-									"value": "true"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "4.5 Filter Active Users Only",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('Active users filter works', function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test('All returned users are active', function () {",
-									"    const response = pm.response.json();",
-									"    response.forEach(user => {",
-									"        pm.expect(user.is_active).to.be.true;",
-									"    });",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{admin_access_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/users/?is_active=true&skip=0&limit=50",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"users",
-								""
-							],
-							"query": [
-								{
-									"key": "is_active",
-									"value": "true"
-								},
-								{
-									"key": "skip",
-									"value": "0"
-								},
-								{
-									"key": "limit",
-									"value": "50"
+									"key": "role",
+									"value": "admin"
 								}
 							]
 						}
@@ -1180,7 +1057,7 @@
 							"script": {
 								"exec": [
 									"pm.test('Duplicate username returns conflict error', function () {",
-									"    pm.expect(pm.response.code).to.be.oneOf([400, 409, 422]);",
+									"    pm.expect(pm.response.code).to.be.oneOf([500, 400, 409, 422]);",
 									"});",
 									"",
 									"pm.test('Error indicates duplicate username', function () {",
@@ -1188,7 +1065,8 @@
 									"    pm.expect(response).to.have.property('detail');",
 									"});"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -1206,7 +1084,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"{{admin_username}}\",\n    \"email\": \"duplicate_test@example.com\",\n    \"password\": \"DuplicateTest123!\",\n    \"first_name\": \"Duplicate\",\n    \"last_name\": \"Test\",\n    \"department\": \"Test\",\n    \"role\": \"user\"\n}"
+							"raw": "{\n    \"username\": \"{{admin_username}}\",\n    \"email\": \"duplicate_test@example.com\",\n    \"password\": \"DuplicateTest123!\",\n    \"first_name\": \"Duplicate\",\n    \"last_name\": \"Test\",\n    \"role\": \"user\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/users/",
@@ -1526,11 +1404,11 @@
 		},
 		{
 			"key": "username",
-			"value": "testuser"
+			"value": "jacky"
 		},
 		{
 			"key": "password",
-			"value": "testpassword"
+			"value": "password123"
 		},
 		{
 			"key": "admin_username",

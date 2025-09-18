@@ -7,7 +7,10 @@ from pydantic import BaseModel, EmailStr, Field, validator
 
 class UserBase(BaseModel):
     username: str = Field(
-        ..., min_length=3, max_length=50, description="Username must be 3-50 characters"
+        ...,
+        min_length=3,
+        max_length=255,
+        description="Username must be 3-50 characters",
     )
     email: EmailStr = Field(..., description="Valid email address required")
     first_name: str = Field(
@@ -15,16 +18,6 @@ class UserBase(BaseModel):
     )
     last_name: str = Field(
         ..., min_length=1, max_length=100, description="Last name required"
-    )
-    department: Optional[str] = Field(
-        None, max_length=100, description="User's department"
-    )
-    role: str = Field(default="user", description="User role in the system")
-    license_number: Optional[str] = Field(
-        None, max_length=50, description="Professional license number"
-    )
-    npi_number: Optional[str] = Field(
-        None, max_length=10, description="National Provider Identifier"
     )
 
     @validator("username")
@@ -34,12 +27,6 @@ class UserBase(BaseModel):
                 "Username can only contain letters, numbers, underscores, and hyphens"
             )
         return v.lower()
-
-    @validator("npi_number")
-    def validate_npi(cls, v):
-        if v and not re.match(r"^\d{10}$", v):
-            raise ValueError("NPI number must be exactly 10 digits")
-        return v
 
 
 class UserCreate(UserBase):
@@ -64,7 +51,7 @@ class UserCreate(UserBase):
 class UserResponse(UserBase):
     id: str = Field(..., description="User ID (same as Keycloak ID)")
     keycloak_id: str = Field(..., description="Keycloak user ID (for internal use)")
-    is_active: bool
+    enable: bool
     email_verified: bool
     last_login: Optional[datetime]
     created_at: Optional[datetime]
@@ -77,41 +64,4 @@ class UserResponse(UserBase):
 class UserUpdate(BaseModel):
     first_name: Optional[str] = Field(None, min_length=1, max_length=100)
     last_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    department: Optional[str] = Field(None, max_length=100)
-    license_number: Optional[str] = Field(None, max_length=50)
-    npi_number: Optional[str] = Field(None, max_length=10)
-
-    @validator("npi_number")
-    def validate_npi(cls, v):
-        if v and not re.match(r"^\d{10}$", v):
-            raise ValueError("NPI number must be exactly 10 digits")
-        return v
-
-
-class LoginRequest(BaseModel):
-    username: str = Field(..., description="Username or email")
-    password: str = Field(..., description="User password")
-
-
-class LoginResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    expires_in: int
-    user: UserResponse
-
-
-class TokenRefreshRequest(BaseModel):
-    refresh_token: str = Field(..., description="Valid refresh token")
-
-
-class AuditLogResponse(BaseModel):
-    id: str
-    action: str
-    details: Optional[str]
-    ip_address: Optional[str]
-    success: bool
-    timestamp: datetime
-
-    class Config:
-        from_attributes = True
+    email: Optional[EmailStr] = Field(None, description="Valid email address")

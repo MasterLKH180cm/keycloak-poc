@@ -17,15 +17,9 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
-    department = Column(String, nullable=True)
-    role = Column(String, nullable=False, default="user")
-
-    # Healthcare-specific fields
-    license_number = Column(String, nullable=True)
-    npi_number = Column(String, nullable=True)  # National Provider Identifier
 
     # Security and audit fields
-    is_active = Column(Boolean, default=True, nullable=False)
+    enable = Column(Boolean, default=True, nullable=False)
     email_verified = Column(Boolean, default=False, nullable=False)
     last_login = Column(DateTime(timezone=True), nullable=True)
     failed_login_attempts = Column(Integer, default=0, nullable=False)
@@ -78,7 +72,7 @@ class UserSession(Base):
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
+    enable = Column(Boolean, default=True, nullable=False)
 
     # Audit fields
     created_at = Column(

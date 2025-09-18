@@ -73,7 +73,3 @@ def test_user_validation():
     # Test weak password
     with pytest.raises(ValidationError):
         UserCreate(**{**valid_data, "password": "weak"})
-
-    # Test invalid NPI
-    with pytest.raises(ValidationError):
-        UserCreate(**{**valid_data, "npi_number": "123"})  # Too short

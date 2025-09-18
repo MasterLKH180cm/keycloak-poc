@@ -4,6 +4,12 @@ from typing import List, Optional
 
 from app.core.security import get_current_user, require_admin
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
+from app.schemas.user_management import (
+    PasswordResetRequest,
+    PasswordResetResponse,
+    UserActivationResponse,
+    UserDeletionResponse,
+)
 from app.services.keycloak_service import keycloak_service
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -14,10 +20,18 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.post("/", response_model=UserResponse, dependencies=[Depends(require_admin)])
 async def create_user(
     user_data: UserCreate,
+    role: str = Query("user", description="Role to assign to the user (user or admin)"),
     current_user: dict = Depends(get_current_user),
 ):
     """Create new user (Admin only)"""
     try:
+        # Validate role parameter
+        if role not in ["user", "admin"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Role must be either 'user' or 'admin'",
+            )
+
         # Check if username or email already exists in Keycloak
         existing_user = await keycloak_service.get_user_by_username(user_data.username)
         if existing_user:
@@ -43,13 +57,8 @@ async def create_user(
             "enabled": True,
             "emailVerified": False,
             "attributes": {
-                "role": [user_data.role] if user_data.role else ["user"],
-                "department": [user_data.department] if user_data.department else [],
-                "license_number": [user_data.license_number]
-                if user_data.license_number
-                else [],
-                "npi_number": [user_data.npi_number] if user_data.npi_number else [],
                 "created_by": [current_user["username"]],
+                "role": [role],
             },
         }
 
@@ -77,13 +86,7 @@ async def create_user(
             first_name=created_user.get("firstName", ""),
             last_name=created_user.get("lastName", ""),
             email_verified=created_user.get("emailVerified", False),
-            is_active=created_user.get("enabled", True),
-            role=created_user.get("attributes", {}).get("role", ["user"])[0],
-            department=created_user.get("attributes", {}).get("department", [None])[0],
-            license_number=created_user.get("attributes", {}).get(
-                "license_number", [None]
-            )[0],
-            npi_number=created_user.get("attributes", {}).get("npi_number", [None])[0],
+            enable=created_user.get("enabled", True),
             created_at=None,
             updated_at=None,
             last_login=None,
@@ -107,25 +110,21 @@ async def create_user(
 async def list_users(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Number of records to return"),
-    department: Optional[str] = Query(None, description="Filter by department"),
     role: Optional[str] = Query(None, description="Filter by role"),
-    is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    enable: Optional[bool] = Query(None, description="Filter by active status"),
 ):
     """List all users with filtering and pagination (Admin only)"""
     try:
         # Get users from Keycloak
         users = await keycloak_service.list_users(
-            first=skip, max=limit, search=None, enabled=is_active
+            first=skip, max=limit, search=None, enabled=enable
         )
         print(users)
         user_responses = []
         for user in users:
             # Apply filters
-            user_department = user.get("attributes", {}).get("department", [None])[0]
             user_role = user.get("attributes", {}).get("role", ["user"])[0]
 
-            if department and user_department != department:
-                continue
             if role and user_role != role:
                 continue
 
@@ -137,13 +136,7 @@ async def list_users(
                 first_name=user.get("firstName", ""),
                 last_name=user.get("lastName", ""),
                 email_verified=user.get("emailVerified", False),
-                is_active=user.get("enabled", True),
-                role=user_role,
-                department=user_department,
-                license_number=user.get("attributes", {}).get("license_number", [None])[
-                    0
-                ],
-                npi_number=user.get("attributes", {}).get("npi_number", [None])[0],
+                enable=user.get("enabled", True),
                 created_at=None,
                 updated_at=None,
                 last_login=None,
@@ -187,13 +180,7 @@ async def get_user(
             first_name=user.get("firstName", ""),
             last_name=user.get("lastName", ""),
             email_verified=user.get("emailVerified", False),
-            is_active=user.get("enabled", True),
-            role=user.get("attributes", {}).get("role", ["user"])[0]
-            if user.get("attributes", {}).get("role")
-            else "user",
-            department=user.get("attributes", {}).get("department", [None])[0],
-            license_number=user.get("attributes", {}).get("license_number", [None])[0],
-            npi_number=user.get("attributes", {}).get("npi_number", [None])[0],
+            enable=user.get("enabled", True),
             created_at=None,
             updated_at=None,
             last_login=None,
@@ -240,22 +227,6 @@ async def update_user(
 
         # Handle attributes
         attributes = {}
-        if "department" in update_data:
-            attributes["department"] = (
-                [update_data["department"]] if update_data["department"] else []
-            )
-        if "role" in update_data:
-            attributes["role"] = (
-                [update_data["role"]] if update_data["role"] else ["user"]
-            )
-        if "license_number" in update_data:
-            attributes["license_number"] = (
-                [update_data["license_number"]] if update_data["license_number"] else []
-            )
-        if "npi_number" in update_data:
-            attributes["npi_number"] = (
-                [update_data["npi_number"]] if update_data["npi_number"] else []
-            )
 
         # Get current user info to preserve existing data
         current_user_info = await keycloak_service.get_user_info(user_id)
@@ -294,15 +265,7 @@ async def update_user(
             first_name=updated_user.get("firstName", ""),
             last_name=updated_user.get("lastName", ""),
             email_verified=updated_user.get("emailVerified", True),
-            is_active=updated_user.get("enabled", True),
-            role=updated_user.get("attributes", {}).get("role", ["user"])[0]
-            if updated_user.get("attributes", {}).get("role")
-            else "user",
-            department=updated_user.get("attributes", {}).get("department", [None])[0],
-            license_number=updated_user.get("attributes", {}).get(
-                "license_number", [None]
-            )[0],
-            npi_number=updated_user.get("attributes", {}).get("npi_number", [None])[0],
+            enable=updated_user.get("enabled", True),
             created_at=None,
             updated_at=None,
             last_login=None,
@@ -320,7 +283,11 @@ async def update_user(
         )
 
 
-@router.delete("/{user_id}", dependencies=[Depends(require_admin)])
+@router.delete(
+    "/{user_id}",
+    response_model=UserDeletionResponse,
+    dependencies=[Depends(require_admin)],
+)
 async def delete_user(
     user_id: str,
     current_user: dict = Depends(get_current_user),
@@ -331,7 +298,7 @@ async def delete_user(
         await keycloak_service.delete_user(user_id)
 
         logger.info(f"User {user_id} deleted by {current_user['username']}")
-        return {"message": "User deleted successfully"}
+        return UserDeletionResponse()
 
     except Exception as e:
         logger.error(f"User deletion error: {e}")
@@ -341,12 +308,16 @@ async def delete_user(
         )
 
 
-@router.post("/{user_id}/deactivate", dependencies=[Depends(require_admin)])
+@router.post(
+    "/{user_id}/deactivate",
+    response_model=UserActivationResponse,
+    dependencies=[Depends(require_admin)],
+)
 async def deactivate_user(
     user_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    """Deactivate user (Admin only) - We disable instead of delete for audit purposes"""
+    """Deactivate user (Admin only) - Disable instead of delete for audit"""
     try:
         # Disable user in Keycloak
         await keycloak_service.update_user(
@@ -360,7 +331,7 @@ async def deactivate_user(
             },
         )
 
-        return {"message": "User deactivated successfully"}
+        return UserActivationResponse(message="User deactivated successfully")
 
     except Exception as e:
         logger.error(f"User deactivation error: {e}")
@@ -370,17 +341,22 @@ async def deactivate_user(
         )
 
 
-@router.post("/{user_id}/reset-password", dependencies=[Depends(require_admin)])
+@router.post(
+    "/{user_id}/reset-password",
+    response_model=PasswordResetResponse,
+    dependencies=[Depends(require_admin)],
+)
 async def reset_user_password(
     user_id: str,
-    password: str,
-    temporary: bool = True,
+    password_data: PasswordResetRequest,
     current_user: dict = Depends(get_current_user),
 ):
     """Reset user password (Admin only)"""
     try:
-        await keycloak_service.reset_user_password(user_id, password, temporary)
-        return {"message": "Password reset successfully"}
+        await keycloak_service.reset_user_password(
+            user_id, password_data.password, password_data.temporary
+        )
+        return PasswordResetResponse()
 
     except Exception as e:
         logger.error(f"Password reset error: {e}")
@@ -390,7 +366,11 @@ async def reset_user_password(
         )
 
 
-@router.post("/{user_id}/activate", dependencies=[Depends(require_admin)])
+@router.post(
+    "/{user_id}/activate",
+    response_model=UserActivationResponse,
+    dependencies=[Depends(require_admin)],
+)
 async def activate_user(
     user_id: str,
     current_user: dict = Depends(get_current_user),
@@ -408,7 +388,7 @@ async def activate_user(
             },
         )
 
-        return {"message": "User activated successfully"}
+        return UserActivationResponse(message="User activated successfully")
 
     except Exception as e:
         logger.error(f"User activation error: {e}")

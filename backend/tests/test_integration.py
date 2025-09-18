@@ -35,7 +35,7 @@ async def test_user_lifecycle(
     )
 
     # 3. Update user profile
-    update_data = {"first_name": "Updated", "department": "Emergency"}
+    update_data = {"first_name": "Updated"}
 
     # Would need proper JWT auth header
     update_response = await client.put("/api/v1/users/test-user-id", json=update_data)

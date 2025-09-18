@@ -32,7 +32,7 @@ def upgrade() -> None:
         sa.Column("role", sa.String(), nullable=False),
         sa.Column("license_number", sa.String(), nullable=True),
         sa.Column("npi_number", sa.String(), nullable=True),
-        sa.Column("is_active", sa.Boolean(), nullable=False, default=True),
+        sa.Column("enable", sa.Boolean(), nullable=False, default=True),
         sa.Column("email_verified", sa.Boolean(), nullable=False, default=False),
         sa.Column("last_login", sa.DateTime(timezone=True), nullable=True),
         sa.Column("failed_login_attempts", sa.Integer(), nullable=False, default=0),
@@ -98,7 +98,7 @@ def upgrade() -> None:
         sa.Column("ip_address", sa.String(), nullable=True),
         sa.Column("user_agent", sa.String(), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False, default=True),
+        sa.Column("enable", sa.Boolean(), nullable=False, default=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
