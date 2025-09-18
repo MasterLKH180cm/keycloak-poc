@@ -1,11 +1,11 @@
 {
 	"info": {
-		"_postman_id": "eac85e5e-73f6-47a1-973e-d92ef86e5af6",
+		"_postman_id": "342122ad-1536-4e7d-bfb8-605ab08aaa04",
 		"name": "Keycloak POC API",
 		"description": "Complete API collection for Keycloak POC with authentication and user management",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "47673802",
-		"_collection_link": "https://jacky850628-9550001.postman.co/workspace/1de1b23b-f4c4-4d4c-8430-595482c9a230/collection/47673802-eac85e5e-73f6-47a1-973e-d92ef86e5af6?action=share&source=collection_link&creator=47673802"
+		"_collection_link": "https://jacky850628-9550001.postman.co/workspace/1de1b23b-f4c4-4d4c-8430-595482c9a230/collection/47673802-342122ad-1536-4e7d-bfb8-605ab08aaa04?action=share&source=collection_link&creator=47673802"
 	},
 	"item": [
 		{
@@ -80,10 +80,10 @@
 									]
 								}
 							},
-							"_postman_previewlanguage": null,
-							"header": null,
+							"_postman_previewlanguage": "Text",
+							"header": [],
 							"cookie": [],
-							"body": null
+							"body": ""
 						},
 						{
 							"name": "testuser",
@@ -110,10 +110,10 @@
 									]
 								}
 							},
-							"_postman_previewlanguage": null,
-							"header": null,
+							"_postman_previewlanguage": "Text",
+							"header": [],
 							"cookie": [],
-							"body": null
+							"body": ""
 						}
 					]
 				},
@@ -126,13 +126,14 @@
 								"exec": [
 									"if (pm.response.code === 200) {",
 									"    const response = pm.response.json();",
-									"    pm.environment.set('access_token', response.access_token);",
+									"    pm.collectionVariables.set('access_token', response.access_token);",
 									"    if (response.refresh_token) {",
-									"        pm.environment.set('refresh_token', response.refresh_token);",
+									"        pm.collectionVariables.set('refresh_token', response.refresh_token);",
 									"    }",
 									"}"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -169,11 +170,15 @@
 							{
 								"key": "Authorization",
 								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
 							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"refresh_token\": \"{{refresh_token}}\"\r\n}",
+							"raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -396,7 +401,7 @@
 					"response": []
 				},
 				{
-					"name": "Deactivate User (Admin)",
+					"name": "Delete User (Admin)",
 					"request": {
 						"method": "DELETE",
 						"header": [
@@ -419,9 +424,9 @@
 					"response": []
 				},
 				{
-					"name": "Get User Audit Logs",
+					"name": "Deactivate User (Admin)",
 					"request": {
-						"method": "GET",
+						"method": "POST",
 						"header": [
 							{
 								"key": "Authorization",
@@ -429,24 +434,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/users/{{user_id}}/audit-logs?skip=0&limit=50",
+							"raw": "{{base_url}}/users/{{created_user_id}}/deactivate",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"users",
-								"{{user_id}}",
-								"audit-logs"
-							],
-							"query": [
-								{
-									"key": "skip",
-									"value": "0"
-								},
-								{
-									"key": "limit",
-									"value": "50"
-								}
+								"{{created_user_id}}",
+								"deactivate"
 							]
 						}
 					},

@@ -315,12 +315,33 @@ async def update_user(
     except Exception as e:
         logger.error(f"User update error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Failed to update user",
         )
 
 
 @router.delete("/{user_id}", dependencies=[Depends(require_admin)])
+async def delete_user(
+    user_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Permanently delete user (Admin only) - Use with caution"""
+    try:
+        # Delete user from Keycloak
+        await keycloak_service.delete_user(user_id)
+
+        logger.info(f"User {user_id} deleted by {current_user['username']}")
+        return {"message": "User deleted successfully"}
+
+    except Exception as e:
+        logger.error(f"User deletion error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete user",
+        )
+
+
+@router.post("/{user_id}/deactivate", dependencies=[Depends(require_admin)])
 async def deactivate_user(
     user_id: str,
     current_user: dict = Depends(get_current_user),

@@ -1,11 +1,11 @@
 {
 	"info": {
-		"_postman_id": "51b4a387-f9a5-41d5-b45a-9f2d9441e5f7",
+		"_postman_id": "440f8e1e-d916-4910-bc06-793504b4fc62",
 		"name": "Keycloak POC - Integration Tests",
 		"description": "Comprehensive integration test flows for Keycloak POC API covering authentication, user management, and various user scenarios",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "47673802",
-		"_collection_link": "https://jacky850628-9550001.postman.co/workspace/1de1b23b-f4c4-4d4c-8430-595482c9a230/collection/47673802-51b4a387-f9a5-41d5-b45a-9f2d9441e5f7?action=share&source=collection_link&creator=47673802"
+		"_collection_link": "https://jacky850628-9550001.postman.co/workspace/1de1b23b-f4c4-4d4c-8430-595482c9a230/collection/47673802-440f8e1e-d916-4910-bc06-793504b4fc62?action=share&source=collection_link&creator=47673802"
 	},
 	"item": [
 		{
@@ -309,65 +309,7 @@
 					"response": []
 				},
 				{
-					"name": "1.6 Get User Audit Logs",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('Audit logs retrieved successfully', function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test('Audit logs contain user activities', function () {",
-									"    const response = pm.response.json();",
-									"    pm.expect(response).to.be.an('array');",
-									"    // Should contain creation and update events",
-									"    if (response.length > 0) {",
-									"        const log = response[0];",
-									"        pm.expect(log).to.have.property('action');",
-									"        pm.expect(log).to.have.property('timestamp');",
-									"    }",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{admin_access_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/users/{{test_user_id}}/audit-logs?skip=0&limit=50",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"users",
-								"{{test_user_id}}",
-								"audit-logs"
-							],
-							"query": [
-								{
-									"key": "skip",
-									"value": "0"
-								},
-								{
-									"key": "limit",
-									"value": "50"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "1.7 Reset User Password",
+					"name": "1.6 Reset User Password",
 					"event": [
 						{
 							"listen": "test",
@@ -423,6 +365,49 @@
 								"users",
 								"{{test_user_id}}",
 								"reset-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.7 Deactivate User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('User deactivation successful', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Success message provided', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('message');",
+									"    pm.expect(response.message).to.include('User deactivated successfully');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{test_user_id}}/deactivate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{test_user_id}}",
+								"deactivate"
 							]
 						}
 					},
@@ -1337,19 +1322,20 @@
 			"name": "Flow 6: Cleanup Operations",
 			"item": [
 				{
-					"name": "6.1 Deactivate Test User",
+					"name": "6.1 Delete Test User",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test('User deactivation successful', function () {",
+									"pm.test('User deletion successful', function () {",
 									"    pm.response.to.have.status(200);",
 									"});",
 									"",
-									"pm.test('User marked as inactive', function () {",
+									"pm.test('Success message provided', function () {",
 									"    const response = pm.response.json();",
-									"    pm.expect(response.is_active).to.be.false;",
+									"    pm.expect(response).to.have.property('message');",
+									"    pm.expect(response.message).to.include('User deleted successfully');",
 									"});"
 								],
 								"type": "text/javascript"
@@ -1378,19 +1364,19 @@
 					"response": []
 				},
 				{
-					"name": "6.2 Verify User is Deactivated",
+					"name": "6.2 Verify User is Deleted",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test('Deactivated user details retrieved', function () {",
-									"    pm.response.to.have.status(200);",
+									"pm.test('Deleted user not found', function () {",
+									"    pm.expect(pm.response.code).to.equal(404);",
 									"});",
 									"",
-									"pm.test('User shows as inactive', function () {",
+									"pm.test('Error indicates user not found', function () {",
 									"    const response = pm.response.json();",
-									"    pm.expect(response.is_active).to.be.false;",
+									"    pm.expect(response).to.have.property('detail');",
 									"});"
 								],
 								"type": "text/javascript"
@@ -1419,13 +1405,13 @@
 					"response": []
 				},
 				{
-					"name": "6.3 Deactivate Bulk Created Users",
+					"name": "6.3 Delete Bulk Created Users",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test('Bulk user deactivation successful', function () {",
+									"pm.test('Bulk user deletion successful', function () {",
 									"    pm.response.to.have.status(200);",
 									"});"
 								],

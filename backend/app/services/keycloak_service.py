@@ -242,6 +242,15 @@ class KeycloakService:
             logger.error(f"Failed to reset password for user {user_id}: {e}")
             raise ValueError("Failed to reset password")
 
+    async def delete_user(self, user_id: str):
+        """Delete user from Keycloak"""
+        try:
+            self.admin_client.delete_user(user_id)
+            logger.info(f"User {user_id} deleted from Keycloak")
+        except KeycloakError as e:
+            logger.error(f"Failed to delete user {user_id}: {e}")
+            raise ValueError("Failed to delete user")
+
     def _create_client_assertion(self) -> str:
         """Create a JWT client assertion for authentication"""
         now = int(time.time())
