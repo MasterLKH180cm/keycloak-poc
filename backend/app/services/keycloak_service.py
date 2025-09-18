@@ -1,7 +1,9 @@
 import logging
+import time
 from typing import Any, Dict, Optional
 
 from app.core.config import settings
+from jose import jwt
 from keycloak import KeycloakAdmin, KeycloakOpenID
 from keycloak.exceptions import KeycloakError
 
@@ -82,24 +84,16 @@ class KeycloakService:
         try:
             logger.info(f"Authenticating user: {username}")
 
-            # Try different token request methods based on client configuration
-            try:
-                # First try with grant_type password
-                token = self.openid_client.token(
-                    username=username, password=password, grant_type="password"
-                )
-            except KeycloakError as e:
-                if "client_assertion_type" in str(e):
-                    # If client requires assertion, try with client credentials
-                    logger.info("Trying alternative authentication method")
-                    token = self.openid_client.token(
-                        username=username,
-                        password=password,
-                        grant_type="password",
-                        scope="openid profile email",
-                    )
-                else:
-                    raise e
+            # Use signed JWT client authentication
+            token = self.openid_client.token(
+                username=username,
+                password=password,
+                grant_type="password",
+                client_assertion_type=(
+                    "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+                ),
+                client_assertion=self._create_client_assertion(),
+            )
 
             logger.info("Authentication successful")
 
@@ -135,18 +129,53 @@ class KeycloakService:
     async def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
         """Refresh access token"""
         try:
-            token = self.openid_client.refresh_token(refresh_token)
+            # Use Keycloak client token method with refresh_token grant type
+            token = self.openid_client.token(
+                grant_type="refresh_token",
+                refresh_token=refresh_token,
+                client_assertion_type="urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+                client_assertion=self._create_client_assertion(),
+            )
             return token
         except KeycloakError as e:
+            logger.error(f"Token refresh failed: {e}")
+            raise ValueError("Invalid refresh token")
+        except Exception as e:
             logger.error(f"Token refresh failed: {e}")
             raise ValueError("Invalid refresh token")
 
     async def logout_user(self, refresh_token: str):
         """Logout user by invalidating refresh token"""
         try:
-            self.openid_client.logout(refresh_token)
+            # Use token revocation to invalidate the refresh token
+            import requests
+
+            token_endpoint = (
+                f"{settings.keycloak_server_url}/realms/"
+                f"{settings.keycloak_realm}/protocol/openid-connect/logout"
+            )
+
+            data = {
+                "client_id": settings.keycloak_client_id,
+                "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+                "client_assertion": self._create_client_assertion(),
+                "refresh_token": refresh_token,
+            }
+
+            response = requests.post(token_endpoint, data=data, verify=True)
+
+            if response.status_code == 204:
+                logger.info("User logged out successfully")
+                return {"message": "Logout successful"}
+            else:
+                logger.error(f"Logout failed with status: {response.status_code}")
+                raise ValueError("Logout failed")
+
         except KeycloakError as e:
             logger.error(f"Logout failed: {e}")
+            raise ValueError("Logout failed")
+        except Exception as e:
+            logger.error(f"Unexpected error during logout: {e}")
             raise ValueError("Logout failed")
 
     async def get_user_info(self, user_id: str) -> Dict[str, Any]:
@@ -212,6 +241,24 @@ class KeycloakService:
         except KeycloakError as e:
             logger.error(f"Failed to reset password for user {user_id}: {e}")
             raise ValueError("Failed to reset password")
+
+    def _create_client_assertion(self) -> str:
+        """Create a JWT client assertion for authentication"""
+        now = int(time.time())
+        token_endpoint = (
+            f"{settings.keycloak_server_url}/realms/"
+            f"{settings.keycloak_realm}/protocol/openid-connect/token"
+        )
+        payload = {
+            "iss": settings.keycloak_client_id,  # issuer
+            "sub": settings.keycloak_client_id,  # subject
+            "aud": token_endpoint,  # audience
+            "exp": now + 300,  # expires in 5 minutes
+            "iat": now,  # issued at
+            "jti": f"{settings.keycloak_client_id}-{now}",  # unique identifier
+        }
+
+        return jwt.encode(payload, settings.keycloak_client_secret, algorithm="HS512")
 
     async def _assign_user_role(self, user_id: str, role: str):
         """Assign role to user"""

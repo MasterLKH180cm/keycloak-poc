@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     keycloak_client_secret: str = Field(..., env="KEYCLOAK_CLIENT_SECRET")
     keycloak_admin_username: str = Field(..., env="KEYCLOAK_ADMIN_USERNAME")
     keycloak_admin_password: str = Field(..., env="KEYCLOAK_ADMIN_PASSWORD")
+    keycloak_registration_access_token: str = Field(
+        ..., env="KEYCLOAK_REGISTRATION_ACCESS_TOKEN"
+    )
 
     # JWT settings
     jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
