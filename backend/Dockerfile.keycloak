@@ -1,59 +1,54 @@
-# Dockerfile.keycloak
+# Dockerfile.keycloak - Simplified Version
 FROM quay.io/keycloak/keycloak:26.0 as builder
 
-# Build optimized Keycloak
+# Build optimized Keycloak for PostgreSQL
 WORKDIR /opt/keycloak
-
-# Copy realm configuration if exists
-COPY keycloak/realm-export.json /opt/keycloak/data/import/realm-export.json
-
-# Build for production
 RUN /opt/keycloak/bin/kc.sh build --db=postgres
 
 # Runtime stage
 FROM quay.io/keycloak/keycloak:26.0
 
-# Copy built Keycloak from builder stage
+# Copy the built Keycloak from builder stage
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 
-# Create non-root user for better security
-USER root
-RUN groupadd -r keycloak && useradd -r -g keycloak keycloak && \
-    chown -R keycloak:keycloak /opt/keycloak && \
-    chmod -R g+rw /opt/keycloak
+# Copy realm configuration if it exists (optional)
+# Make sure the source path exists or use a conditional copy
+COPY --chown=keycloak:root keycloak/realm-export.json* /tmp/
+RUN if [ -f /tmp/realm-export.json ]; then \
+        mkdir -p /opt/keycloak/data/import && \
+        cp /tmp/realm-export.json /opt/keycloak/data/import/ && \
+        chown keycloak:root /opt/keycloak/data/import/realm-export.json; \
+    fi && \
+    rm -f /tmp/realm-export.json*
 
-# Set environment variables with secure defaults
+# Set production environment variables
 ENV KC_DB=postgres \
     KC_BOOTSTRAP_ADMIN_USERNAME=admin \
     KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
-    KC_IMPORT=/opt/keycloak/data/import/realm-export.json \
     KC_HEALTH_ENABLED=true \
     KC_METRICS_ENABLED=true \
+    KC_HTTP_ENABLED=true \
+    KC_HOSTNAME_STRICT=false \
+    KC_HOSTNAME_STRICT_HTTPS=false \
+    KC_PROXY=edge \
     KC_LOG_LEVEL=INFO \
     TZ=UTC
 
-# Create necessary directories
-RUN mkdir -p /opt/keycloak/data/import && \
-    chown -R keycloak:keycloak /opt/keycloak/data
-
-# Switch to non-root user
-USER keycloak
-
-# Expose ports
-EXPOSE 8080 8443
+# Expose Keycloak port
+EXPOSE 8080
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=60s \
     CMD curl -f http://localhost:8080/health/ready || exit 1
 
-# Set working directory
+# Use the default keycloak user (already exists in base image)
+USER keycloak
 WORKDIR /opt/keycloak
 
-# Default command for development
-CMD ["start-dev", "--import-realm"]
+# Production start command with conditional realm import
+CMD ["sh", "-c", "if [ -f /opt/keycloak/data/import/realm-export.json ]; then exec /opt/keycloak/bin/kc.sh start --import-realm; else exec /opt/keycloak/bin/kc.sh start; fi"]
 
-# Labels for metadata
+# Metadata labels
 LABEL org.opencontainers.image.title="Keycloak" \
       org.opencontainers.image.description="Keycloak Identity and Access Management" \
-      org.opencontainers.image.version="26.0" \
-      org.opencontainers.image.vendor="Red Hat"
+      org.opencontainers.image.version="26.0"
