@@ -94,7 +94,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.AZURE_REGISTRY_USER }}
-          password: ${{ secrets.REGISTRY_PWD }}
+          password: ${{ secrets.AZURE_REGISTRY_PWD }}
 
       - name: Extract single image tag for scanning
         id: scan-tag
