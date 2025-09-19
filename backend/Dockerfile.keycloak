@@ -1,0 +1,59 @@
+# Dockerfile.keycloak
+FROM quay.io/keycloak/keycloak:26.0 as builder
+
+# Build optimized Keycloak
+WORKDIR /opt/keycloak
+
+# Copy realm configuration if exists
+COPY keycloak/realm-export.json /opt/keycloak/data/import/realm-export.json
+
+# Build for production
+RUN /opt/keycloak/bin/kc.sh build --db=postgres
+
+# Runtime stage
+FROM quay.io/keycloak/keycloak:26.0
+
+# Copy built Keycloak from builder stage
+COPY --from=builder /opt/keycloak/ /opt/keycloak/
+
+# Create non-root user for better security
+USER root
+RUN groupadd -r keycloak && useradd -r -g keycloak keycloak && \
+    chown -R keycloak:keycloak /opt/keycloak && \
+    chmod -R g+rw /opt/keycloak
+
+# Set environment variables with secure defaults
+ENV KC_DB=postgres \
+    KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+    KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+    KC_IMPORT=/opt/keycloak/data/import/realm-export.json \
+    KC_HEALTH_ENABLED=true \
+    KC_METRICS_ENABLED=true \
+    KC_LOG_LEVEL=INFO \
+    TZ=UTC
+
+# Create necessary directories
+RUN mkdir -p /opt/keycloak/data/import && \
+    chown -R keycloak:keycloak /opt/keycloak/data
+
+# Switch to non-root user
+USER keycloak
+
+# Expose ports
+EXPOSE 8080 8443
+
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=60s \
+    CMD curl -f http://localhost:8080/health/ready || exit 1
+
+# Set working directory
+WORKDIR /opt/keycloak
+
+# Default command for development
+CMD ["start-dev", "--import-realm"]
+
+# Labels for metadata
+LABEL org.opencontainers.image.title="Keycloak" \
+      org.opencontainers.image.description="Keycloak Identity and Access Management" \
+      org.opencontainers.image.version="26.0" \
+      org.opencontainers.image.vendor="Red Hat"

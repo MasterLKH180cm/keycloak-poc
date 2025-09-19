@@ -1,0 +1,46 @@
+# Dockerfile.postgres
+FROM postgres:17.6
+
+# Create non-root user for better security
+RUN groupadd -r keycloak && useradd -r -g keycloak keycloak
+
+# Set environment variables with defaults
+ENV POSTGRES_DB=keycloak \
+    POSTGRES_USER=keycloak \
+    POSTGRES_PASSWORD=keycloak \
+    TZ=UTC \
+    PGDATA=/var/lib/postgresql/data
+
+# Create data directory and set ownership
+RUN mkdir -p /var/lib/postgresql/data && \
+    chown -R postgres:postgres /var/lib/postgresql/data && \
+    chmod 700 /var/lib/postgresql/data
+
+# Add healthcheck script
+COPY --chmod=755 <<EOF /usr/local/bin/healthcheck.sh
+#!/bin/bash
+pg_isready -U "\${POSTGRES_USER}" -d "\${POSTGRES_DB}" -h localhost -p 5432
+EOF
+
+# Configure PostgreSQL for better performance and security
+RUN echo "host all all 0.0.0.0/0 md5" >> /usr/share/postgresql/postgresql.conf.sample && \
+    echo "listen_addresses = '*'" >> /usr/share/postgresql/postgresql.conf.sample
+
+# Set resource limits via environment (used by Docker)
+ENV POSTGRES_INITDB_ARGS="--auth-host=md5 --auth-local=peer"
+
+# Expose port
+EXPOSE 5432
+
+# Use official postgres entrypoint
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["postgres"]
+
+# Add healthcheck
+HEALTHCHECK --interval=5s --timeout=3s --retries=30 --start-period=30s \
+    CMD /usr/local/bin/healthcheck.sh
+
+# Labels for metadata
+LABEL org.opencontainers.image.title="PostgreSQL for Keycloak" \
+      org.opencontainers.image.description="PostgreSQL database optimized for Keycloak" \
+      org.opencontainers.image.version="17.6"

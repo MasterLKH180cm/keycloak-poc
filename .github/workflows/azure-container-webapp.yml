@@ -1,0 +1,305 @@
+# Build and deploy Keycloak Docker container to Azure Web App
+name: Build and deploy Keycloak to Azure Web App
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'backend/Dockerfile.keycloak'
+      - 'backend/Dockerfile.postgres'
+      - 'backend/keycloak/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: keycloak
+  REGISTRY: wolfpacscontainerregistry.azurecr.io
+  KEYCLOAK_IMAGE_NAME: keycloak
+  POSTGRES_IMAGE_NAME: keycloak-postgres
+  AZURE_RESOURCE_GROUP: WolfPacs-Sponsored-Resources
+
+jobs:
+  build-postgres:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.AZURE_REGISTRY_USER }}
+          password: ${{ secrets.AZURE_REGISTRY_PWD }}
+
+      - name: Extract metadata for PostgreSQL Docker image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.POSTGRES_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=17.6
+
+      - name: Build and push PostgreSQL Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./backend/Dockerfile.postgres
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  build-keycloak:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.AZURE_REGISTRY_USER }}
+          password: ${{ secrets.AZURE_REGISTRY_PWD }}
+
+      - name: Extract metadata for Keycloak Docker image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.KEYCLOAK_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=26.0
+
+      - name: Build and push Keycloak Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./backend/Dockerfile.keycloak
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          build-args: |
+            KEYCLOAK_ADMIN=${{ secrets.KEYCLOAK_ADMIN || 'admin' }}
+
+  security-validation:
+    runs-on: ubuntu-latest
+    needs: [build-postgres, build-keycloak]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+      packages: read
+    
+    strategy:
+      matrix:
+        include:
+          - image-type: "keycloak"
+            image-tag: ${{ needs.build-keycloak.outputs.image-tag }}
+          - image-type: "postgres"
+            image-tag: ${{ needs.build-postgres.outputs.image-tag }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.AZURE_REGISTRY_USER }}
+          password: ${{ secrets.AZURE_REGISTRY_PWD }}
+
+      - name: Extract single image tag for scanning
+        id: scan-tag
+        run: |
+          IMAGE_TAG="${{ matrix.image-tag }}"
+          # Extract the latest tag from the multi-line output
+          SCAN_TAG=$(echo "$IMAGE_TAG" | grep ":latest" | head -n1 | tr -d '\n\r')
+          if [ -z "$SCAN_TAG" ]; then
+            # Fallback to first tag if latest not found
+            SCAN_TAG=$(echo "$IMAGE_TAG" | head -n1 | tr -d '\n\r')
+          fi
+          echo "scan-tag=$SCAN_TAG" >> $GITHUB_OUTPUT
+          echo "Using image tag for scanning: $SCAN_TAG"
+
+      - name: Pull image for scanning
+        run: |
+          echo "Pulling ${{ matrix.image-type }} image: ${{ steps.scan-tag.outputs.scan-tag }}"
+          docker pull ${{ steps.scan-tag.outputs.scan-tag }}
+
+      - name: Run Container Security Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.scan-tag.outputs.scan-tag }}
+          format: 'sarif'
+          output: 'trivy-results-${{ matrix.image-type }}.sarif'
+
+      - name: Upload Security Scan Results (GitHub Advanced Security)
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-${{ matrix.image-type }}.sarif'
+          category: '${{ matrix.image-type }}-security-scan'
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Security Scan Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-security-scan-results-${{ matrix.image-type }}
+          path: 'trivy-results-${{ matrix.image-type }}.sarif'
+          retention-days: 30
+
+      - name: Check for Critical Vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.scan-tag.outputs.scan-tag }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'  # Don't fail deployment for vulnerabilities, just report
+
+      - name: Display Security Scan Summary
+        if: always()
+        run: |
+          echo "Security scan completed for ${{ matrix.image-type }}. Results uploaded as artifact."
+          echo "Note: If GitHub Advanced Security is not enabled, SARIF upload may fail but the scan results are still available as artifacts."
+          if [ -f trivy-results-${{ matrix.image-type }}.sarif ]; then
+            echo "SARIF file created successfully"
+          else
+            echo "Warning: SARIF file not found"
+          fi
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-keycloak, build-postgres, security-validation]
+    environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Extract single image tag for deployment (Keycloak only for App Service)
+      - name: Clean Keycloak image tag
+        id: clean-tag
+        run: |
+          IMAGE_TAG="${{ needs.build-keycloak.outputs.image-tag }}"
+          # Extract the latest tag from the multi-line output
+          CLEAN_TAG=$(echo "$IMAGE_TAG" | grep ":latest" | head -n1 | tr -d '\n\r')
+          if [ -z "$CLEAN_TAG" ]; then
+            # Fallback to first tag if latest not found
+            CLEAN_TAG=$(echo "$IMAGE_TAG" | head -n1 | tr -d '\n\r')
+          fi
+          echo "clean-tag=$CLEAN_TAG" >> $GITHUB_OUTPUT
+          echo "Using Keycloak image tag for deployment: $CLEAN_TAG"
+
+      # Extract PostgreSQL image tag for reference
+      - name: Clean PostgreSQL image tag
+        id: clean-postgres-tag
+        run: |
+          IMAGE_TAG="${{ needs.build-postgres.outputs.image-tag }}"
+          CLEAN_TAG=$(echo "$IMAGE_TAG" | grep ":latest" | head -n1 | tr -d '\n\r')
+          if [ -z "$CLEAN_TAG" ]; then
+            CLEAN_TAG=$(echo "$IMAGE_TAG" | head -n1 | tr -d '\n\r')
+          fi
+          echo "clean-postgres-tag=$CLEAN_TAG" >> $GITHUB_OUTPUT
+          echo "PostgreSQL image tag: $CLEAN_TAG"
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: 'Production'
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
+          images: ${{ steps.clean-tag.outputs.clean-tag }}
+
+      - name: Set App Service Configuration
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.30.0
+          inlineScript: |
+            # Configure environment variables for Keycloak
+            az webapp config appsettings set \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --name ${{ env.AZURE_WEBAPP_NAME }} \
+              --settings \
+                KC_DB=postgres \
+                KC_BOOTSTRAP_ADMIN_USERNAME=${{ secrets.KEYCLOAK_ADMIN || 'admin' }} \
+                KC_BOOTSTRAP_ADMIN_PASSWORD=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }} \
+                KC_DB_URL=${{ secrets.KC_DB_URL }} \
+                KC_DB_USERNAME=${{ secrets.POSTGRES_USER || 'keycloak' }} \
+                KC_DB_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+                KC_HEALTH_ENABLED=true \
+                KC_METRICS_ENABLED=true \
+                TZ=UTC \
+                WEBSITES_PORT=8080 \
+                WEBSITES_CONTAINER_START_TIME_LIMIT=1800
+
+  deployment-notification:
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+    
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "### Images Built:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Keycloak**: ${{ needs.build-keycloak.outputs.image-tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **PostgreSQL**: ${{ needs.build-postgres.outputs.image-tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Status:" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "✅ **SUCCESS**: Keycloak deployed to Azure Web App" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Access URL**: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **FAILED**: Deployment failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Security Scan:" >> $GITHUB_STEP_SUMMARY
+          echo "Security scan results are available in the workflow artifacts." >> $GITHUB_STEP_SUMMARY
