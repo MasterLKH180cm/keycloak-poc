@@ -75,9 +75,9 @@ services:
       KC_IMPORT: /opt/keycloak/data/import/realm-export.json
       KC_PROXY: edge
       TZ: "UTC"
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_URL: https://localhost
-      KC_HOSTNAME_ADMIN_URL: https://localhost
+      KC_HOSTNAME: 20.168.120.11
+      KC_HOSTNAME_URL: https://20.168.120.11
+      KC_HOSTNAME_ADMIN_URL: https://20.168.120.11
       KC_PROXY_HEADERS: xforwarded
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
@@ -94,26 +94,26 @@ services:
           cpus: '1.00'
           memory: 1024M
 
-  # api:
-  #   build:
-  #     context: ./app
-  #     dockerfile: Dockerfile
-  #   environment:
-  #     APP_ENV: dev
-  #     DATABASE_URL: postgresql+psycopg:///keycloak?user=keycloak&password=keycloak&host=db&port=5432
-  #     REDIS_URL: redis://redis:6379/0
-  #     OIDC_ISSUER: http://keycloak:8080/realms/POC
-  #     OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
-  #     OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #     keycloak:
-  #       condition: service_started
-  #   ports: ["8000:8000"]
-  #   networks: [stack]
+# api:
+#   build:
+#     context: ./app
+#     dockerfile: Dockerfile
+#   environment:
+#     APP_ENV: dev
+#     DATABASE_URL: postgresql+psycopg:///keycloak?user=keycloak&password=keycloak&host=db&port=5432
+#     REDIS_URL: redis://redis:6379/0
+#     OIDC_ISSUER: http://keycloak:8080/realms/POC
+#     OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+#     OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+#   depends_on:
+#     db:
+#       condition: service_healthy
+#     redis:
+#       condition: service_healthy
+#     keycloak:
+#       condition: service_started
+#   ports: ["8000:8000"]
+#   networks: [stack]
 
 volumes:
   db_data:
