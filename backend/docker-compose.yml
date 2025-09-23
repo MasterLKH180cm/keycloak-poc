@@ -69,15 +69,15 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-keycloak}  # Fixed: internal container port
+      KC_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-keycloak}
       KC_DB_USERNAME: ${POSTGRES_USER:-keycloak}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-keycloak}
       KC_IMPORT: /opt/keycloak/data/import/realm-export.json
       KC_PROXY: edge
       TZ: "UTC"
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_URL: https://localhost
-      KC_HOSTNAME_ADMIN_URL: https://localhost
+      KC_HOSTNAME: 20.168.120.11
+      KC_HOSTNAME_URL: https://20.168.120.11
+      KC_HOSTNAME_ADMIN_URL: https://20.168.120.11
       KC_PROXY_HEADERS: xforwarded
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
