@@ -11,7 +11,7 @@ services:
       TZ: "UTC"
     volumes: [db_data:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-keycloak} -d ${POSTGRES_DB:-keycloak}"]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -75,9 +75,9 @@ services:
       KC_IMPORT: /opt/keycloak/data/import/realm-export.json
       KC_PROXY: edge
       TZ: "UTC"
-      KC_HOSTNAME: 20.168.120.11
-      KC_HOSTNAME_URL: https://20.168.120.11
-      KC_HOSTNAME_ADMIN_URL: https://20.168.120.11
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_URL: https://localhost
+      KC_HOSTNAME_ADMIN_URL: https://localhost
       KC_PROXY_HEADERS: xforwarded
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
