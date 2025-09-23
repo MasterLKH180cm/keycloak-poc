@@ -1,243 +1,243 @@
-# Build and deploy PostgreSQL Docker container to Azure Container Registry
-name: Build and deploy PostgreSQL to Azure Container Registry
+# # Build and deploy PostgreSQL Docker container to Azure Container Registry
+# name: Build and deploy PostgreSQL to Azure Container Registry
 
-on:
-  workflow_dispatch:
-    inputs:
-      deploy_to_azure:
-        description: 'Deploy to Azure Container Instance'
-        required: false
-        default: false
-        type: boolean
-      image_tag:
-        description: 'Custom image tag (optional)'
-        required: false
-        default: ''
-        type: string
+# on:
+#   workflow_dispatch:
+#     inputs:
+#       deploy_to_azure:
+#         description: 'Deploy to Azure Container Instance'
+#         required: false
+#         default: false
+#         type: boolean
+#       image_tag:
+#         description: 'Custom image tag (optional)'
+#         required: false
+#         default: ''
+#         type: string
 
-env:
-  REGISTRY: wolfpacscontainerregistry.azurecr.io
-  POSTGRES_IMAGE_NAME: keycloak-postgres
-  AZURE_RESOURCE_GROUP: WolfPacs-Sponsored-Resources
+# env:
+#   REGISTRY: wolfpacscontainerregistry.azurecr.io
+#   POSTGRES_IMAGE_NAME: keycloak-postgres
+#   AZURE_RESOURCE_GROUP: WolfPacs-Sponsored-Resources
 
-jobs:
-  build-postgres:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+# jobs:
+#   build-postgres:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: read
+#       packages: write
       
-    outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
-      image-digest: ${{ steps.build.outputs.digest }}
+#     outputs:
+#       image-tag: ${{ steps.meta.outputs.tags }}
+#       image-digest: ${{ steps.build.outputs.digest }}
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.AZURE_REGISTRY_USER }}
-          password: ${{ secrets.AZURE_REGISTRY_PWD }}
+#       - name: Log in to Container Registry
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ${{ env.REGISTRY }}
+#           username: ${{ secrets.AZURE_REGISTRY_USER }}
+#           password: ${{ secrets.AZURE_REGISTRY_PWD }}
 
-      - name: Extract metadata for PostgreSQL Docker image
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.POSTGRES_IMAGE_NAME }}
-          tags: |
-            type=raw,value=manual-${{ github.run_number }}
-            type=raw,value=latest
-            type=raw,value=17.6
-            type=raw,value=${{ github.event.inputs.image_tag }},enable=${{ github.event.inputs.image_tag != '' }}
-            type=sha,prefix=manual-
+#       - name: Extract metadata for PostgreSQL Docker image
+#         id: meta
+#         uses: docker/metadata-action@v5
+#         with:
+#           images: ${{ env.REGISTRY }}/${{ env.POSTGRES_IMAGE_NAME }}
+#           tags: |
+#             type=raw,value=manual-${{ github.run_number }}
+#             type=raw,value=latest
+#             type=raw,value=17.6
+#             type=raw,value=${{ github.event.inputs.image_tag }},enable=${{ github.event.inputs.image_tag != '' }}
+#             type=sha,prefix=manual-
 
-      - name: Build and push PostgreSQL Docker image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile.postgresql
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
-          build-args: |
-            POSTGRES_VERSION=17.6
+#       - name: Build and push PostgreSQL Docker image
+#         id: build
+#         uses: docker/build-push-action@v5
+#         with:
+#           context: ./backend
+#           file: ./backend/Dockerfile.postgresql
+#           push: true
+#           tags: ${{ steps.meta.outputs.tags }}
+#           labels: ${{ steps.meta.outputs.labels }}
+#           cache-from: type=gha
+#           cache-to: type=gha,mode=max
+#           platforms: linux/amd64,linux/arm64
+#           build-args: |
+#             POSTGRES_VERSION=17.6
 
-  security-validation:
-    runs-on: ubuntu-latest
-    needs: [build-postgres]
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-      packages: read
+#   security-validation:
+#     runs-on: ubuntu-latest
+#     needs: [build-postgres]
+#     permissions:
+#       contents: read
+#       security-events: write
+#       actions: read
+#       packages: read
     
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.AZURE_REGISTRY_USER }}
-          password: ${{ secrets.AZURE_REGISTRY_PWD }}
+#       - name: Log in to Container Registry
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ${{ env.REGISTRY }}
+#           username: ${{ secrets.AZURE_REGISTRY_USER }}
+#           password: ${{ secrets.AZURE_REGISTRY_PWD }}
 
-      - name: Extract single image tag for scanning
-        id: scan-tag
-        run: |
-          IMAGE_TAG="${{ needs.build-postgres.outputs.image-tag }}"
-          # Extract the latest tag from the multi-line output
-          SCAN_TAG=$(echo "$IMAGE_TAG" | grep ":latest" | head -n1 | tr -d '\n\r')
-          if [ -z "$SCAN_TAG" ]; then
-            # Fallback to first tag if latest not found
-            SCAN_TAG=$(echo "$IMAGE_TAG" | head -n1 | tr -d '\n\r')
-          fi
-          echo "scan-tag=$SCAN_TAG" >> $GITHUB_OUTPUT
-          echo "Using image tag for scanning: $SCAN_TAG"
+#       - name: Extract single image tag for scanning
+#         id: scan-tag
+#         run: |
+#           IMAGE_TAG="${{ needs.build-postgres.outputs.image-tag }}"
+#           # Extract the latest tag from the multi-line output
+#           SCAN_TAG=$(echo "$IMAGE_TAG" | grep ":latest" | head -n1 | tr -d '\n\r')
+#           if [ -z "$SCAN_TAG" ]; then
+#             # Fallback to first tag if latest not found
+#             SCAN_TAG=$(echo "$IMAGE_TAG" | head -n1 | tr -d '\n\r')
+#           fi
+#           echo "scan-tag=$SCAN_TAG" >> $GITHUB_OUTPUT
+#           echo "Using image tag for scanning: $SCAN_TAG"
 
-      - name: Pull image for scanning
-        run: |
-          echo "Pulling PostgreSQL image: ${{ steps.scan-tag.outputs.scan-tag }}"
-          docker pull ${{ steps.scan-tag.outputs.scan-tag }}
+#       - name: Pull image for scanning
+#         run: |
+#           echo "Pulling PostgreSQL image: ${{ steps.scan-tag.outputs.scan-tag }}"
+#           docker pull ${{ steps.scan-tag.outputs.scan-tag }}
 
-      - name: Run Container Security Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.scan-tag.outputs.scan-tag }}
-          format: 'sarif'
-          output: 'trivy-results-postgres.sarif'
+#       - name: Run Container Security Scan
+#         uses: aquasecurity/trivy-action@master
+#         with:
+#           image-ref: ${{ steps.scan-tag.outputs.scan-tag }}
+#           format: 'sarif'
+#           output: 'trivy-results-postgres.sarif'
 
-      - name: Upload Security Scan Results (GitHub Advanced Security)
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results-postgres.sarif'
-          category: 'postgres-security-scan'
-        continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       - name: Upload Security Scan Results (GitHub Advanced Security)
+#         uses: github/codeql-action/upload-sarif@v3
+#         if: always()
+#         with:
+#           sarif_file: 'trivy-results-postgres.sarif'
+#           category: 'postgres-security-scan'
+#         continue-on-error: true
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Security Scan Artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: trivy-security-scan-results-postgres
-          path: 'trivy-results-postgres.sarif'
-          retention-days: 30
+#       - name: Upload Security Scan Artifact
+#         uses: actions/upload-artifact@v4
+#         if: always()
+#         with:
+#           name: trivy-security-scan-results-postgres
+#           path: 'trivy-results-postgres.sarif'
+#           retention-days: 30
 
-      - name: Check for Critical Vulnerabilities
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.scan-tag.outputs.scan-tag }}
-          format: 'table'
-          severity: 'CRITICAL'
-          exit-code: '1'  # Fail if critical vulnerabilities found
+#       - name: Check for Critical Vulnerabilities
+#         uses: aquasecurity/trivy-action@master
+#         with:
+#           image-ref: ${{ steps.scan-tag.outputs.scan-tag }}
+#           format: 'table'
+#           severity: 'CRITICAL'
+#           exit-code: '1'  # Fail if critical vulnerabilities found
 
-      - name: Display Security Scan Summary
-        if: always()
-        run: |
-          echo "Security scan completed for PostgreSQL. Results uploaded as artifact."
-          if [ -f trivy-results-postgres.sarif ]; then
-            echo "SARIF file created successfully"
-          else
-            echo "Warning: SARIF file not found"
-          fi
+#       - name: Display Security Scan Summary
+#         if: always()
+#         run: |
+#           echo "Security scan completed for PostgreSQL. Results uploaded as artifact."
+#           if [ -f trivy-results-postgres.sarif ]; then
+#             echo "SARIF file created successfully"
+#           else
+#             echo "Warning: SARIF file not found"
+#           fi
 
-  create-azure-container-instance:
-    runs-on: ubuntu-latest
-    needs: [build-postgres, security-validation]
-    if: github.event.inputs.deploy_to_azure == 'true'
-    environment:
-      name: 'Production'
+#   create-azure-container-instance:
+#     runs-on: ubuntu-latest
+#     needs: [build-postgres, security-validation]
+#     if: github.event.inputs.deploy_to_azure == 'true'
+#     environment:
+#       name: 'Production'
     
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
-      - name: Clean PostgreSQL image tag
-        id: clean-tag
-        run: |
-          IMAGE_TAG="${{ needs.build-postgres.outputs.image-tag }}"
-          CLEAN_TAG=$(echo "$IMAGE_TAG" | grep ":latest" | head -n1 | tr -d '\n\r')
-          if [ -z "$CLEAN_TAG" ]; then
-            CLEAN_TAG=$(echo "$IMAGE_TAG" | head -n1 | tr -d '\n\r')
-          fi
-          echo "clean-tag=$CLEAN_TAG" >> $GITHUB_OUTPUT
-          echo "Using PostgreSQL image tag for deployment: $CLEAN_TAG"
+#       - name: Clean PostgreSQL image tag
+#         id: clean-tag
+#         run: |
+#           IMAGE_TAG="${{ needs.build-postgres.outputs.image-tag }}"
+#           CLEAN_TAG=$(echo "$IMAGE_TAG" | grep ":latest" | head -n1 | tr -d '\n\r')
+#           if [ -z "$CLEAN_TAG" ]; then
+#             CLEAN_TAG=$(echo "$IMAGE_TAG" | head -n1 | tr -d '\n\r')
+#           fi
+#           echo "clean-tag=$CLEAN_TAG" >> $GITHUB_OUTPUT
+#           echo "Using PostgreSQL image tag for deployment: $CLEAN_TAG"
 
-      - name: Login to Azure
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+#       - name: Login to Azure
+#         uses: azure/login@v1
+#         with:
+#           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Create or Update Azure Container Instance
-        uses: azure/CLI@v1
-        with:
-          azcliversion: 2.30.0
-          inlineScript: |
-            # Create or update PostgreSQL container instance
-            az container create \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --name keycloak-postgres \
-              --image ${{ steps.clean-tag.outputs.clean-tag }} \
-              --registry-login-server ${{ env.REGISTRY }} \
-              --registry-username ${{ secrets.AZURE_REGISTRY_USER }} \
-              --registry-password ${{ secrets.AZURE_REGISTRY_PWD }} \
-              --environment-variables \
-                POSTGRES_DB=${{ secrets.POSTGRES_DB || 'keycloak' }} \
-                POSTGRES_USER=${{ secrets.POSTGRES_USER || 'keycloak' }} \
-                POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
-                PGDATA=/var/lib/postgresql/data/pgdata \
-              --ports 5432 \
-              --cpu 1 \
-              --memory 2 \
-              --restart-policy Always \
-              --location eastus \
-              --os-type Linux
+#       - name: Create or Update Azure Container Instance
+#         uses: azure/CLI@v1
+#         with:
+#           azcliversion: 2.30.0
+#           inlineScript: |
+#             # Create or update PostgreSQL container instance
+#             az container create \
+#               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+#               --name keycloak-postgres \
+#               --image ${{ steps.clean-tag.outputs.clean-tag }} \
+#               --registry-login-server ${{ env.REGISTRY }} \
+#               --registry-username ${{ secrets.AZURE_REGISTRY_USER }} \
+#               --registry-password ${{ secrets.AZURE_REGISTRY_PWD }} \
+#               --environment-variables \
+#                 POSTGRES_DB=${{ secrets.POSTGRES_DB || 'keycloak' }} \
+#                 POSTGRES_USER=${{ secrets.POSTGRES_USER || 'keycloak' }} \
+#                 POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+#                 PGDATA=/var/lib/postgresql/data/pgdata \
+#               --ports 5432 \
+#               --cpu 1 \
+#               --memory 2 \
+#               --restart-policy Always \
+#               --location eastus \
+#               --os-type Linux
 
-  deployment-notification:
-    runs-on: ubuntu-latest
-    needs: [build-postgres, security-validation, create-azure-container-instance]
-    if: always()
+#   deployment-notification:
+#     runs-on: ubuntu-latest
+#     needs: [build-postgres, security-validation, create-azure-container-instance]
+#     if: always()
     
-    steps:
-      - name: Deployment Summary
-        run: |
-          echo "## PostgreSQL Manual Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "### Workflow Triggered:" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger**: Manual execution" >> $GITHUB_STEP_SUMMARY
-          echo "- **Deploy to Azure**: ${{ github.event.inputs.deploy_to_azure }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Custom Tag**: ${{ github.event.inputs.image_tag || 'Not specified' }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Image Built:" >> $GITHUB_STEP_SUMMARY
-          echo "- **PostgreSQL**: ${{ needs.build-postgres.outputs.image-tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Security Scan Status:" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ needs.security-validation.result }}" == "success" ]; then
-            echo "✅ **SUCCESS**: Security scan passed" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ **WARNING**: Security scan found issues - check artifacts" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Deployment Status:" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ needs.create-azure-container-instance.result }}" == "success" ]; then
-            echo "✅ **SUCCESS**: PostgreSQL deployed to Azure Container Instance" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.create-azure-container-instance.result }}" == "skipped" ]; then
-            echo "⏭️ **SKIPPED**: Deployment not enabled (set 'Deploy to Azure Container Instance' to true)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **FAILED**: Deployment failed" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
-          echo "- Image is available in Azure Container Registry for manual deployment" >> $GITHUB_STEP_SUMMARY
-          echo "- To deploy to Azure, re-run workflow with 'Deploy to Azure Container Instance' enabled" >> $GITHUB_STEP_SUMMARY
+#     steps:
+#       - name: Deployment Summary
+#         run: |
+#           echo "## PostgreSQL Manual Deployment Summary" >> $GITHUB_STEP_SUMMARY
+#           echo "### Workflow Triggered:" >> $GITHUB_STEP_SUMMARY
+#           echo "- **Trigger**: Manual execution" >> $GITHUB_STEP_SUMMARY
+#           echo "- **Deploy to Azure**: ${{ github.event.inputs.deploy_to_azure }}" >> $GITHUB_STEP_SUMMARY
+#           echo "- **Custom Tag**: ${{ github.event.inputs.image_tag || 'Not specified' }}" >> $GITHUB_STEP_SUMMARY
+#           echo "" >> $GITHUB_STEP_SUMMARY
+#           echo "### Image Built:" >> $GITHUB_STEP_SUMMARY
+#           echo "- **PostgreSQL**: ${{ needs.build-postgres.outputs.image-tag }}" >> $GITHUB_STEP_SUMMARY
+#           echo "" >> $GITHUB_STEP_SUMMARY
+#           echo "### Security Scan Status:" >> $GITHUB_STEP_SUMMARY
+#           if [ "${{ needs.security-validation.result }}" == "success" ]; then
+#             echo "✅ **SUCCESS**: Security scan passed" >> $GITHUB_STEP_SUMMARY
+#           else
+#             echo "⚠️ **WARNING**: Security scan found issues - check artifacts" >> $GITHUB_STEP_SUMMARY
+#           fi
+#           echo "" >> $GITHUB_STEP_SUMMARY
+#           echo "### Deployment Status:" >> $GITHUB_STEP_SUMMARY
+#           if [ "${{ needs.create-azure-container-instance.result }}" == "success" ]; then
+#             echo "✅ **SUCCESS**: PostgreSQL deployed to Azure Container Instance" >> $GITHUB_STEP_SUMMARY
+#           elif [ "${{ needs.create-azure-container-instance.result }}" == "skipped" ]; then
+#             echo "⏭️ **SKIPPED**: Deployment not enabled (set 'Deploy to Azure Container Instance' to true)" >> $GITHUB_STEP_SUMMARY
+#           else
+#             echo "❌ **FAILED**: Deployment failed" >> $GITHUB_STEP_SUMMARY
+#           fi
+#           echo "" >> $GITHUB_STEP_SUMMARY
+#           echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+#           echo "- Image is available in Azure Container Registry for manual deployment" >> $GITHUB_STEP_SUMMARY
+#           echo "- To deploy to Azure, re-run workflow with 'Deploy to Azure Container Instance' enabled" >> $GITHUB_STEP_SUMMARY

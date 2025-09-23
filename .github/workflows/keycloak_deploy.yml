@@ -1,299 +1,299 @@
-# Build and deploy Keycloak Docker container to Azure Web App
-name: Build and deploy Keycloak to Azure Web App
+# # Build and deploy Keycloak Docker container to Azure Web App
+# name: Build and deploy Keycloak to Azure Web App
 
-on:
-  push:
-    branches:
-      - master
-      - main
-    paths:
-      - 'Dockerfile.keycloak'
-      - 'themes/**'
-      - 'providers/**'
-      - 'config/**'
-      - '.github/workflows/**'
-  workflow_dispatch:
+# on:
+#   push:
+#     branches:
+#       - master
+#       - main
+#     paths:
+#       - 'Dockerfile.keycloak'
+#       - 'themes/**'
+#       - 'providers/**'
+#       - 'config/**'
+#       - '.github/workflows/**'
+#   workflow_dispatch:
 
-env:
-  AZURE_WEBAPP_NAME: keycloak
-  REGISTRY: wolfpacscontainerregistry.azurecr.io
-  KEYCLOAK_IMAGE_NAME: keycloak
-  AZURE_RESOURCE_GROUP: WolfPacs-Sponsored-Resources
+# env:
+#   AZURE_WEBAPP_NAME: keycloak
+#   REGISTRY: wolfpacscontainerregistry.azurecr.io
+#   KEYCLOAK_IMAGE_NAME: keycloak
+#   AZURE_RESOURCE_GROUP: WolfPacs-Sponsored-Resources
 
-jobs:
-  build-keycloak:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+# jobs:
+#   build-keycloak:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: read
+#       packages: write
       
-    outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
-      image-digest: ${{ steps.build.outputs.digest }}
+#     outputs:
+#       image-tag: ${{ steps.meta.outputs.tags }}
+#       image-digest: ${{ steps.build.outputs.digest }}
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.AZURE_REGISTRY_USER }}
-          password: ${{ secrets.AZURE_REGISTRY_PWD }}
+#       - name: Log in to Container Registry
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ${{ env.REGISTRY }}
+#           username: ${{ secrets.AZURE_REGISTRY_USER }}
+#           password: ${{ secrets.AZURE_REGISTRY_PWD }}
 
-      - name: Extract metadata for Keycloak Docker image
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.KEYCLOAK_IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=26.0
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+#       - name: Extract metadata for Keycloak Docker image
+#         id: meta
+#         uses: docker/metadata-action@v5
+#         with:
+#           images: ${{ env.REGISTRY }}/${{ env.KEYCLOAK_IMAGE_NAME }}
+#           tags: |
+#             type=ref,event=branch
+#             type=ref,event=pr
+#             type=sha,prefix={{branch}}-
+#             type=raw,value=latest,enable={{is_default_branch}}
+#             type=raw,value=26.0
+#             type=semver,pattern={{version}}
+#             type=semver,pattern={{major}}.{{minor}}
 
-      - name: Build and push Keycloak Docker image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile.keycloak
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
-          build-args: |
-            KEYCLOAK_ADMIN=${{ secrets.KEYCLOAK_ADMIN || 'admin' }}
-            KEYCLOAK_VERSION=26.0
+#       - name: Build and push Keycloak Docker image
+#         id: build
+#         uses: docker/build-push-action@v5
+#         with:
+#           context: ./backend
+#           file: ./backend/Dockerfile.keycloak
+#           push: true
+#           tags: ${{ steps.meta.outputs.tags }}
+#           labels: ${{ steps.meta.outputs.labels }}
+#           cache-from: type=gha
+#           cache-to: type=gha,mode=max
+#           platforms: linux/amd64
+#           build-args: |
+#             KEYCLOAK_ADMIN=${{ secrets.KEYCLOAK_ADMIN || 'admin' }}
+#             KEYCLOAK_VERSION=26.0
 
-  security-validation:
-    runs-on: ubuntu-latest
-    needs: [build-keycloak]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-      packages: read
+#   security-validation:
+#     runs-on: ubuntu-latest
+#     needs: [build-keycloak]
+#     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+#     permissions:
+#       contents: read
+#       security-events: write
+#       actions: read
+#       packages: read
     
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.AZURE_REGISTRY_USER }}
-          password: ${{ secrets.AZURE_REGISTRY_PWD }}
+#       - name: Log in to Container Registry
+#         uses: docker/login-action@v3
+#         with:
+#           registry: ${{ env.REGISTRY }}
+#           username: ${{ secrets.AZURE_REGISTRY_USER }}
+#           password: ${{ secrets.AZURE_REGISTRY_PWD }}
 
-      - name: Extract single image tag for scanning
-        id: scan-tag
-        run: |
-          IMAGE_TAG="${{ needs.build-keycloak.outputs.image-tag }}"
-          # Extract the latest tag from the multi-line output
-          SCAN_TAG=$(echo "$IMAGE_TAG" | grep ":latest" | head -n1 | tr -d '\n\r')
-          if [ -z "$SCAN_TAG" ]; then
-            # Fallback to first tag if latest not found
-            SCAN_TAG=$(echo "$IMAGE_TAG" | head -n1 | tr -d '\n\r')
-          fi
-          echo "scan-tag=$SCAN_TAG" >> $GITHUB_OUTPUT
-          echo "Using image tag for scanning: $SCAN_TAG"
+#       - name: Extract single image tag for scanning
+#         id: scan-tag
+#         run: |
+#           IMAGE_TAG="${{ needs.build-keycloak.outputs.image-tag }}"
+#           # Extract the latest tag from the multi-line output
+#           SCAN_TAG=$(echo "$IMAGE_TAG" | grep ":latest" | head -n1 | tr -d '\n\r')
+#           if [ -z "$SCAN_TAG" ]; then
+#             # Fallback to first tag if latest not found
+#             SCAN_TAG=$(echo "$IMAGE_TAG" | head -n1 | tr -d '\n\r')
+#           fi
+#           echo "scan-tag=$SCAN_TAG" >> $GITHUB_OUTPUT
+#           echo "Using image tag for scanning: $SCAN_TAG"
 
-      - name: Pull image for scanning
-        run: |
-          echo "Pulling Keycloak image: ${{ steps.scan-tag.outputs.scan-tag }}"
-          docker pull ${{ steps.scan-tag.outputs.scan-tag }}
+#       - name: Pull image for scanning
+#         run: |
+#           echo "Pulling Keycloak image: ${{ steps.scan-tag.outputs.scan-tag }}"
+#           docker pull ${{ steps.scan-tag.outputs.scan-tag }}
 
-      - name: Run Container Security Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.scan-tag.outputs.scan-tag }}
-          format: 'sarif'
-          output: 'trivy-results-keycloak.sarif'
+#       - name: Run Container Security Scan
+#         uses: aquasecurity/trivy-action@master
+#         with:
+#           image-ref: ${{ steps.scan-tag.outputs.scan-tag }}
+#           format: 'sarif'
+#           output: 'trivy-results-keycloak.sarif'
 
-      - name: Upload Security Scan Results (GitHub Advanced Security)
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results-keycloak.sarif'
-          category: 'keycloak-security-scan'
-        continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       - name: Upload Security Scan Results (GitHub Advanced Security)
+#         uses: github/codeql-action/upload-sarif@v3
+#         if: always()
+#         with:
+#           sarif_file: 'trivy-results-keycloak.sarif'
+#           category: 'keycloak-security-scan'
+#         continue-on-error: true
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Security Scan Artifact
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: trivy-security-scan-results-keycloak
-          path: 'trivy-results-keycloak.sarif'
-          retention-days: 30
+#       - name: Upload Security Scan Artifact
+#         uses: actions/upload-artifact@v4
+#         if: always()
+#         with:
+#           name: trivy-security-scan-results-keycloak
+#           path: 'trivy-results-keycloak.sarif'
+#           retention-days: 30
 
-      - name: Check for Critical Vulnerabilities
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ steps.scan-tag.outputs.scan-tag }}
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'  # Don't fail deployment for vulnerabilities, just report
+#       - name: Check for Critical Vulnerabilities
+#         uses: aquasecurity/trivy-action@master
+#         with:
+#           image-ref: ${{ steps.scan-tag.outputs.scan-tag }}
+#           format: 'table'
+#           severity: 'CRITICAL,HIGH'
+#           exit-code: '0'  # Don't fail deployment for vulnerabilities, just report
 
-      - name: Display Security Scan Summary
-        if: always()
-        run: |
-          echo "Security scan completed for Keycloak. Results uploaded as artifact."
-          if [ -f trivy-results-keycloak.sarif ]; then
-            echo "SARIF file created successfully"
-          else
-            echo "Warning: SARIF file not found"
-          fi
+#       - name: Display Security Scan Summary
+#         if: always()
+#         run: |
+#           echo "Security scan completed for Keycloak. Results uploaded as artifact."
+#           if [ -f trivy-results-keycloak.sarif ]; then
+#             echo "SARIF file created successfully"
+#           else
+#             echo "Warning: SARIF file not found"
+#           fi
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: [build-keycloak, security-validation]
-    environment:
-      name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+#   deploy:
+#     runs-on: ubuntu-latest
+#     needs: [build-keycloak, security-validation]
+#     environment:
+#       name: 'Production'
+#       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
 
-      # Extract single image tag for deployment
-      - name: Clean Keycloak image tag
-        id: clean-tag
-        run: |
-          IMAGE_TAG="${{ needs.build-keycloak.outputs.image-tag }}"
-          # Extract the latest tag from the multi-line output
-          CLEAN_TAG=$(echo "$IMAGE_TAG" | grep ":latest" | head -n1 | tr -d '\n\r')
-          if [ -z "$CLEAN_TAG" ]; then
-            # Fallback to first tag if latest not found
-            CLEAN_TAG=$(echo "$IMAGE_TAG" | head -n1 | tr -d '\n\r')
-          fi
-          echo "clean-tag=$CLEAN_TAG" >> $GITHUB_OUTPUT
-          echo "Using Keycloak image tag for deployment: $CLEAN_TAG"
+#       # Extract single image tag for deployment
+#       - name: Clean Keycloak image tag
+#         id: clean-tag
+#         run: |
+#           IMAGE_TAG="${{ needs.build-keycloak.outputs.image-tag }}"
+#           # Extract the latest tag from the multi-line output
+#           CLEAN_TAG=$(echo "$IMAGE_TAG" | grep ":latest" | head -n1 | tr -d '\n\r')
+#           if [ -z "$CLEAN_TAG" ]; then
+#             # Fallback to first tag if latest not found
+#             CLEAN_TAG=$(echo "$IMAGE_TAG" | head -n1 | tr -d '\n\r')
+#           fi
+#           echo "clean-tag=$CLEAN_TAG" >> $GITHUB_OUTPUT
+#           echo "Using Keycloak image tag for deployment: $CLEAN_TAG"
 
-      - name: Deploy to Azure Web App
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
-          images: ${{ steps.clean-tag.outputs.clean-tag }}
+#       - name: Deploy to Azure Web App
+#         id: deploy-to-webapp
+#         uses: azure/webapps-deploy@v3
+#         with:
+#           app-name: ${{ env.AZURE_WEBAPP_NAME }}
+#           slot-name: 'Production'
+#           publish-profile: ${{ secrets.KEYCLOAK_PUBLISHPROFILE }}
+#           images: ${{ steps.clean-tag.outputs.clean-tag }}
 
-      - name: Set App Service Configuration
-        uses: azure/CLI@v1
-        with:
-          azcliversion: 2.30.0
-          inlineScript: |
-            # Configure environment variables for Keycloak
-            az webapp config appsettings set \
-              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-              --name ${{ env.AZURE_WEBAPP_NAME }} \
-              --settings \
-                KC_DB=postgres \
-                KC_BOOTSTRAP_ADMIN_USERNAME=${{ secrets.KEYCLOAK_ADMIN || 'admin' }} \
-                KC_BOOTSTRAP_ADMIN_PASSWORD=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }} \
-                KC_DB_URL=${{ secrets.KC_DB_URL }} \
-                KC_DB_USERNAME=${{ secrets.POSTGRES_USER || 'keycloak' }} \
-                KC_DB_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
-                KC_HEALTH_ENABLED=true \
-                KC_METRICS_ENABLED=true \
-                KC_HTTP_ENABLED=true \
-                KC_HOSTNAME_STRICT=false \
-                KC_HOSTNAME_STRICT_HTTPS=false \
-                KC_PROXY=edge \
-                TZ=UTC \
-                WEBSITES_PORT=8080 \
-                WEBSITES_CONTAINER_START_TIME_LIMIT=1800
+#       - name: Set App Service Configuration
+#         uses: azure/CLI@v1
+#         with:
+#           azcliversion: 2.30.0
+#           inlineScript: |
+#             # Configure environment variables for Keycloak
+#             az webapp config appsettings set \
+#               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+#               --name ${{ env.AZURE_WEBAPP_NAME }} \
+#               --settings \
+#                 KC_DB=postgres \
+#                 KC_BOOTSTRAP_ADMIN_USERNAME=${{ secrets.KEYCLOAK_ADMIN || 'admin' }} \
+#                 KC_BOOTSTRAP_ADMIN_PASSWORD=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }} \
+#                 KC_DB_URL=${{ secrets.KC_DB_URL }} \
+#                 KC_DB_USERNAME=${{ secrets.POSTGRES_USER || 'keycloak' }} \
+#                 KC_DB_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+#                 KC_HEALTH_ENABLED=true \
+#                 KC_METRICS_ENABLED=true \
+#                 KC_HTTP_ENABLED=true \
+#                 KC_HOSTNAME_STRICT=false \
+#                 KC_HOSTNAME_STRICT_HTTPS=false \
+#                 KC_PROXY=edge \
+#                 TZ=UTC \
+#                 WEBSITES_PORT=8080 \
+#                 WEBSITES_CONTAINER_START_TIME_LIMIT=1800
 
-  integration-test:
-    runs-on: ubuntu-latest
-    needs: [deploy]
-    if: success()
+#   integration-test:
+#     runs-on: ubuntu-latest
+#     needs: [deploy]
+#     if: success()
     
-    steps:
-      - name: Wait for deployment to be ready
-        run: |
-          echo "Waiting for Keycloak to be ready..."
-          sleep 60
+#     steps:
+#       - name: Wait for deployment to be ready
+#         run: |
+#           echo "Waiting for Keycloak to be ready..."
+#           sleep 60
 
-      - name: Health Check
-        run: |
-          # Test Keycloak health endpoint
-          HEALTH_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
-          echo "Testing health endpoint: $HEALTH_URL"
+#       - name: Health Check
+#         run: |
+#           # Test Keycloak health endpoint
+#           HEALTH_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
+#           echo "Testing health endpoint: $HEALTH_URL"
           
-          # Retry logic for health check
-          for i in {1..10}; do
-            if curl -f -s "$HEALTH_URL"; then
-              echo "✅ Health check passed"
-              break
-            else
-              echo "⏳ Attempt $i: Health check failed, retrying in 30s..."
-              sleep 30
-            fi
+#           # Retry logic for health check
+#           for i in {1..10}; do
+#             if curl -f -s "$HEALTH_URL"; then
+#               echo "✅ Health check passed"
+#               break
+#             else
+#               echo "⏳ Attempt $i: Health check failed, retrying in 30s..."
+#               sleep 30
+#             fi
             
-            if [ $i -eq 10 ]; then
-              echo "❌ Health check failed after 10 attempts"
-              exit 1
-            fi
-          done
+#             if [ $i -eq 10 ]; then
+#               echo "❌ Health check failed after 10 attempts"
+#               exit 1
+#             fi
+#           done
 
-      - name: Test Admin Console Access
-        run: |
-          # Test admin console accessibility
-          ADMIN_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/admin"
-          echo "Testing admin console: $ADMIN_URL"
+#       - name: Test Admin Console Access
+#         run: |
+#           # Test admin console accessibility
+#           ADMIN_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/admin"
+#           echo "Testing admin console: $ADMIN_URL"
           
-          if curl -f -s -o /dev/null "$ADMIN_URL"; then
-            echo "✅ Admin console is accessible"
-          else
-            echo "⚠️ Admin console might not be fully ready yet"
-          fi
+#           if curl -f -s -o /dev/null "$ADMIN_URL"; then
+#             echo "✅ Admin console is accessible"
+#           else
+#             echo "⚠️ Admin console might not be fully ready yet"
+#           fi
 
-  deployment-notification:
-    runs-on: ubuntu-latest
-    needs: [deploy, integration-test]
-    if: always()
+#   deployment-notification:
+#     runs-on: ubuntu-latest
+#     needs: [deploy, integration-test]
+#     if: always()
     
-    steps:
-      - name: Deployment Summary
-        run: |
-          echo "## Keycloak Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "### Image Built:" >> $GITHUB_STEP_SUMMARY
-          echo "- **Keycloak**: ${{ needs.build-keycloak.outputs.image-tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Deployment Status:" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "✅ **SUCCESS**: Keycloak deployed to Azure Web App" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Access URLs**:" >> $GITHUB_STEP_SUMMARY
-            echo "- **Application**: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
-            echo "- **Admin Console**: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/admin" >> $GITHUB_STEP_SUMMARY
-            echo "- **Health Check**: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **FAILED**: Deployment failed" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Integration Tests:" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ needs.integration-test.result }}" == "success" ]; then
-            echo "✅ **SUCCESS**: All integration tests passed" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.integration-test.result }}" == "skipped" ]; then
-            echo "⏭️ **SKIPPED**: Integration tests skipped due to deployment failure" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **FAILED**: Integration tests failed" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Security Scan:" >> $GITHUB_STEP_SUMMARY
-          echo "Security scan results are available in the workflow artifacts." >> $GITHUB_STEP_SUMMARY
+#     steps:
+#       - name: Deployment Summary
+#         run: |
+#           echo "## Keycloak Deployment Summary" >> $GITHUB_STEP_SUMMARY
+#           echo "### Image Built:" >> $GITHUB_STEP_SUMMARY
+#           echo "- **Keycloak**: ${{ needs.build-keycloak.outputs.image-tag }}" >> $GITHUB_STEP_SUMMARY
+#           echo "" >> $GITHUB_STEP_SUMMARY
+#           echo "### Deployment Status:" >> $GITHUB_STEP_SUMMARY
+#           if [ "${{ needs.deploy.result }}" == "success" ]; then
+#             echo "✅ **SUCCESS**: Keycloak deployed to Azure Web App" >> $GITHUB_STEP_SUMMARY
+#             echo "" >> $GITHUB_STEP_SUMMARY
+#             echo "**Access URLs**:" >> $GITHUB_STEP_SUMMARY
+#             echo "- **Application**: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
+#             echo "- **Admin Console**: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/admin" >> $GITHUB_STEP_SUMMARY
+#             echo "- **Health Check**: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health" >> $GITHUB_STEP_SUMMARY
+#           else
+#             echo "❌ **FAILED**: Deployment failed" >> $GITHUB_STEP_SUMMARY
+#           fi
+#           echo "" >> $GITHUB_STEP_SUMMARY
+#           echo "### Integration Tests:" >> $GITHUB_STEP_SUMMARY
+#           if [ "${{ needs.integration-test.result }}" == "success" ]; then
+#             echo "✅ **SUCCESS**: All integration tests passed" >> $GITHUB_STEP_SUMMARY
+#           elif [ "${{ needs.integration-test.result }}" == "skipped" ]; then
+#             echo "⏭️ **SKIPPED**: Integration tests skipped due to deployment failure" >> $GITHUB_STEP_SUMMARY
+#           else
+#             echo "❌ **FAILED**: Integration tests failed" >> $GITHUB_STEP_SUMMARY
+#           fi
+#           echo "" >> $GITHUB_STEP_SUMMARY
+#           echo "### Security Scan:" >> $GITHUB_STEP_SUMMARY
+#           echo "Security scan results are available in the workflow artifacts." >> $GITHUB_STEP_SUMMARY
