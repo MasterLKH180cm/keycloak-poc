@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 import uvicorn
-from app.api import auth, users
+from app.api import session
 from app.core.config import settings
 from app.db.database import init_db
 from app.db.redis import redis_manager
@@ -79,8 +79,9 @@ app.add_middleware(
 )
 
 # Include API routes
-app.include_router(auth.router, prefix="/api/v1")
-app.include_router(users.router, prefix="/api/v1")
+# app.include_router(auth.router, prefix="/api/v1")
+# app.include_router(users.router, prefix="/api/v1")
+app.include_router(session.router, prefix="/api/v1")
 
 
 @app.get("/api/health")

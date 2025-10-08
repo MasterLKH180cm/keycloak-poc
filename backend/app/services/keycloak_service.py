@@ -24,7 +24,7 @@ class KeycloakService:
                 username=settings.keycloak_admin_username,
                 password=settings.keycloak_admin_password,
                 realm_name=settings.keycloak_realm,
-                verify=True,
+                verify=False,
             )
 
             # OpenID client for authentication
