@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 import redis.asyncio as redis
 from app.core.config import settings
-from app.models.session import Session, SessionEvent
+from app.models.session_models import Session, SessionEvent
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload

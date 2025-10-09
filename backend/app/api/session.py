@@ -36,7 +36,7 @@ from app.models.session_models import (
 from app.services.session_management_service import SessionManagementService
 from app.services.session_service import SessionService
 from app.services.websocket_service import WebSocketService
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -234,7 +234,7 @@ async def get_session_state(
     description="Mark a study as opened in the viewer application and notify connected dictation clients",
 )
 async def open_study_in_viewer(
-    study_id: str = Depends(validate_study_id),
+    study_id: str = None,
     request: StudyOpenedRequest = None,
     user_info: Dict[str, Any] = Depends(get_current_user),
     session_service: SessionService = Depends(get_session_service),
@@ -296,7 +296,7 @@ async def open_study_in_viewer(
     description="Mark a study as closed in the viewer application and notify connected dictation clients",
 )
 async def close_study_in_viewer(
-    study_id: str = Depends(validate_study_id),
+    study_id: str = None,
     user_info: Dict[str, Any] = Depends(get_current_user),
     session_service: SessionService = Depends(get_session_service),
     websocket_service: WebSocketService = Depends(get_websocket_service),
@@ -354,7 +354,7 @@ async def close_study_in_viewer(
     description="Register intent to open a WebSocket connection for the specified application type",
 )
 async def register_websocket_connection(
-    app_id: AppType = Depends(validate_app_id),
+    app_id: AppType = None,
     request: WebSocketConnectionRequest = None,
     user_info: Dict[str, Any] = Depends(get_current_user),
     websocket_service: WebSocketService = Depends(get_websocket_service),
@@ -399,7 +399,7 @@ async def register_websocket_connection(
     description="Check if user has an active WebSocket connection for the specified application",
 )
 async def get_websocket_status(
-    app_id: AppType = Depends(validate_app_id),
+    app_id: AppType = None,
     user_info: Dict[str, Any] = Depends(get_current_user),
     websocket_service: WebSocketService = Depends(get_websocket_service),
 ) -> WebSocketStatusResponse:
@@ -558,54 +558,4 @@ async def health_check(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Service health check failed",
-        )
-
-
-# --- CORS Options Handlers ---
-@router.options("/{path:path}")
-async def handle_cors_options(path: str):
-    """Handle CORS preflight requests for all session endpoints."""
-    return {"message": "CORS preflight handled"}
-
-
-def validate_study_id(study_id: str = Path(..., min_length=1, max_length=100)) -> str:
-    """
-    Validate study ID parameter.
-
-    Args:
-        study_id: Study identifier from path
-
-    Returns:
-        str: Validated study ID
-
-    Raises:
-        HTTPException: If study ID is invalid
-    """
-    if not study_id.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Study ID cannot be empty"
-        )
-    return study_id.strip()
-
-
-def validate_app_id(app_id: str = Path(...)) -> AppType:
-    """
-    Validate application ID parameter.
-
-    Args:
-        app_id: Application identifier from path
-
-    Returns:
-        AppType: Validated application type
-
-    Raises:
-        HTTPException: If app ID is invalid
-    """
-    try:
-        return AppType(app_id)
-    except ValueError:
-        valid_apps = [app.value for app in AppType]
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid app_id. Must be one of: {valid_apps}",
         )
