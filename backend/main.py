@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from app.api import session
 from app.core.config import settings
-from app.db.database import init_db
+from app.db.database import init_session_db
 from app.db.redis import redis_manager
 from app.services.keycloak_service import keycloak_service
 from fastapi import FastAPI
@@ -27,7 +27,8 @@ async def lifespan(app: FastAPI):
         logger.info("Starting Hospital Authentication System...")
 
         # Initialize database
-        await init_db()
+        # await init_keycloak_db()
+        await init_session_db()
         logger.info("Database initialized")
 
         # Initialize Redis
@@ -101,9 +102,11 @@ async def system_status():
 
     try:
         # Check database
-        from app.db.database import engine
+        from app.db.database import session_db_engine
 
-        async with engine.begin() as conn:
+        # async with keycloak_db_engine.begin() as conn:
+        #     await conn.execute("SELECT 1")
+        async with session_db_engine.begin() as conn:
             await conn.execute("SELECT 1")
         status_info["database"] = "healthy"
     except Exception as e:

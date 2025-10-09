@@ -13,8 +13,8 @@ load_dotenv(dotenv_path=env_path)
 
 class Settings(BaseSettings):
     # Database settings
-    database_url: str = os.getenv("DATABASE_URL")
-
+    keycloak_database_url: str = os.getenv("KEYCLOAK_DATABASE_URL")
+    session_database_url: str = os.getenv("SESSION_DATABASE_URL")
     # Redis settings
     redis_url: str = os.getenv("REDIS_URL")
     redis_stream_name: str = os.getenv("REDIS_STREAM_NAME", "dictation_stream")

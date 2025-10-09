@@ -33,7 +33,7 @@ class KeycloakService:
                 client_id=settings.keycloak_client_id,
                 realm_name=settings.keycloak_realm,
                 client_secret_key=settings.keycloak_client_secret,
-                verify=True,
+                verify=False,
             )
 
             # Verify client configuration

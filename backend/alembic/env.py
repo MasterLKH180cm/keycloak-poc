@@ -1,10 +1,18 @@
+import os
 from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from pathlib import Path
 
 from alembic import context
+from app.db.database import Base
+from app.models.session_models import Session, SessionEvent  # noqa: F401
+from dotenv import load_dotenv
+from sqlalchemy import engine_from_config, pool
 
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
+env_path = Path(__file__).parent.parent / ".env"
+
+load_dotenv(dotenv_path=env_path)
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -13,12 +21,17 @@ config = context.config
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+database_uri = os.getenv("SESSION_DATABASE_URL")
+if database_uri is None:
+    raise Exception("Please set environment variable 'SESSION_DATABASE_URL'")
+
+config.set_main_option("sqlalchemy.url", database_uri)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -64,9 +77,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

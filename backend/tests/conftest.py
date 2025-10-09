@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
-from app.db.database import Base, get_db
+from app.db.database import Base, get_keycloak_db
 from app.db.redis import get_redis
 from app.main import app
 from app.services.keycloak_service import keycloak_service
@@ -12,11 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 # Test database URL - using in-memory SQLite for tests
-TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+TEST_KEYCLOAK_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
 # Create test engine
 test_engine = create_async_engine(
-    TEST_DATABASE_URL,
+    TEST_KEYCLOAK_DATABASE_URL,
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
     echo=False,
@@ -73,13 +73,13 @@ async def client(
 ) -> AsyncGenerator[AsyncClient, None]:
     """Create test client with mocked dependencies"""
 
-    def override_get_db():
+    def override_get_keycloak_db():
         return db_session
 
     def override_get_redis():
         return mock_redis
 
-    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_keycloak_db] = override_get_keycloak_db
     app.dependency_overrides[get_redis] = override_get_redis
 
     # Mock keycloak service

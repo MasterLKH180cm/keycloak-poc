@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
 
+import httpx
 from app.core.config import settings
 from fastapi import HTTPException, status
 from jose import JWTError, jwt

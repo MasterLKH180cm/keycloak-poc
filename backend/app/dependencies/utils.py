@@ -1,7 +1,8 @@
 import logging
+from typing import Any, Dict
 
-from app.dependencies.redis import get_redis_client
 from app.services.auth_service import AuthService
+from app.services.session_management_service import SessionManagementService
 from app.services.session_service import SessionService
 from app.services.websocket_service import WebSocketService
 from fastapi import Depends, HTTPException, status
@@ -10,16 +11,49 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
+# Service instances
+_auth_service = None
+_session_service = None
+_websocket_service = None
+_session_management_service = None
+
 
 def get_auth_service() -> AuthService:
     """Get authentication service instance."""
-    return AuthService()
+    global _auth_service
+    if _auth_service is None:
+        _auth_service = AuthService()
+    return _auth_service
+
+
+def get_session_service() -> SessionService:
+    """Get session service instance."""
+    global _session_service
+    if _session_service is None:
+        _session_service = SessionService()
+    return _session_service
+
+
+def get_websocket_service() -> WebSocketService:
+    """Get WebSocket service instance."""
+    global _websocket_service
+    if _websocket_service is None:
+        _websocket_service = WebSocketService()
+    return _websocket_service
+
+
+def get_session_management_service() -> SessionManagementService:
+    """Get session management service instance."""
+    global _session_management_service
+    if _session_management_service is None:
+        _session_management_service = SessionManagementService()
+    return _session_management_service
 
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     auth_service: AuthService = Depends(get_auth_service),
-) -> str:
+) -> Dict[str, Any]:
     """
     Extract and validate user from JWT token.
 
@@ -28,7 +62,7 @@ async def get_current_user(
         auth_service: Authentication service
 
     Returns:
-        str: Validated user ID
+        Dict[str, Any]: Validated user information
 
     Raises:
         HTTPException: If authentication fails
@@ -42,18 +76,17 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        print(f"credentials.credentials: {credentials.credentials}")
-        user_id = await auth_service.verify_token(credentials.credentials)
-        print(f"Authenticated user_id: {user_id}")
+        token = credentials.credentials
+        user_info = await auth_service.verify_token(token)
 
-        if not user_id:
+        if not user_info.get("sub"):
             logger.warning("Token verification returned empty user_id")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication token",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        return user_id
+        return user_info
     except HTTPException:
         # Re-raise HTTP exceptions as-is
         raise
@@ -64,15 +97,3 @@ async def get_current_user(
             detail="Authentication failed",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-
-def get_session_service() -> SessionService:
-    """Get session service instance."""
-    redis_client = get_redis_client()
-    return SessionService(redis_pool=redis_client)
-
-
-def get_websocket_service() -> WebSocketService:
-    """Get WebSocket service instance."""
-    redis_client = get_redis_client()
-    return WebSocketService(redis_pool=redis_client)
