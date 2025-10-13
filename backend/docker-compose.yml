@@ -21,10 +21,6 @@ services:
     networks: [stack]
     ports: ["${DB_PORT:-15432}:5432"]
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '1.00'
     logging:
       driver: "json-file"
       options:
@@ -47,10 +43,6 @@ services:
       retries: 5
       start_period: 15s
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
     logging:
       driver: "json-file"
       options:
@@ -88,10 +80,6 @@ services:
       - "${KEYCLOAK_PORT:-8080}:8080"
     networks: [stack]
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '2.00'
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
       interval: 30s
@@ -132,10 +120,6 @@ services:
     ports: ["${BACKEND_PORT:-8000}:8000"]
     networks: [stack]
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '1.00'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -163,10 +147,6 @@ services:
       - "${HTTPS_PORT:-443}:443"
     networks: [stack]
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
