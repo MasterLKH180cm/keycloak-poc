@@ -15,14 +15,18 @@ class RedisManager:
     async def init_redis(self):
         """Initialize Redis connection"""
         try:
+            # Parse Redis URL to handle authentication properly
+            redis_url = settings.redis_url
+            logger.info(f"Connecting to Redis: {redis_url}")
+
             self.redis_client = redis.from_url(
-                settings.redis_url,
-                encoding="utf-8",
+                redis_url,
                 decode_responses=True,
-                max_connections=20,
-                retry_on_timeout=True,
+                max_connections=10,
+                socket_keepalive=True,
                 socket_connect_timeout=5,
-                socket_timeout=5,
+                retry_on_timeout=True,
+                health_check_interval=30,
             )
             # Test the connection
             await self.redis_client.ping()

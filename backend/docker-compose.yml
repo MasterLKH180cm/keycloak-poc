@@ -124,7 +124,7 @@ services:
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-keycloak}:${POSTGRES_PASSWORD:-keycloak}@db:5432/${POSTGRES_DB:-keycloak}
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
       - KEYCLOAK_URL=${KEYCLOAK_URL:-https://20.168.120.11}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-master}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-backend-client}
