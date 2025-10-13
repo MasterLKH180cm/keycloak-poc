@@ -17,7 +17,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 300s
     networks: [stack]
     ports: ["${DB_PORT:-15432}:5432"]
     restart: unless-stopped
@@ -89,7 +89,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports: ["${BACKEND_PORT:-8001}:8000"]
+    ports: ["${BACKEND_PORT:-8000}:8000"]
     networks: [stack]
     restart: unless-stopped
     deploy:

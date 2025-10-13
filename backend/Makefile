@@ -48,12 +48,12 @@ migrate:
 
 # Run the application
 run:
-	.venv/bin/uvicorn main:app --port 8001 --reload
+	.venv/bin/uvicorn main:app --port 8000 --reload
 # 	uv run python main.py
 
 # Run in development mode
 dev:
-	.venv/bin/uvicorn main:app --port 8001 --reload
+	.venv/bin/uvicorn main:app --port 8000 --reload
 
 # Run tests
 test:
@@ -82,7 +82,7 @@ docker-build:
 	docker build -t keycloak-backend:latest .
 
 docker-run:
-	docker run -d --name keycloak-backend -p 8001:8000 keycloak-backend:latest
+	docker run -d --name keycloak-backend -p 8000:8000 keycloak-backend:latest
 
 docker-stop:
 	docker compose down
@@ -142,7 +142,7 @@ endif
 # Health checks
 health:
 	@echo "Checking service health..."
-	curl -f http://localhost:8001/health || echo "Backend: UNHEALTHY"
+	curl -f http://localhost:8000/health || echo "Backend: UNHEALTHY"
 	curl -f http://localhost:8080/health/ready || echo "Keycloak: UNHEALTHY"
 
 # Security scan

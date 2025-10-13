@@ -28,7 +28,7 @@ export default function SessionAPITest() {
   });
 
   // API base URL - adjust based on your backend configuration
-  const API_BASE_URL = "http://localhost:8001";
+  const API_BASE_URL = "http://localhost:8000";
 
   // Real API call function
   const makeAPICall = async (endpoint, method = "GET", body = null) => {
