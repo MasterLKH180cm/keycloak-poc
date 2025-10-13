@@ -42,7 +42,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Router configuration
 router = APIRouter(
-    prefix="/session/api",
+    prefix="",
     tags=["session"],
     responses={
         401: {"model": ErrorResponse, "description": "Authentication failed"},

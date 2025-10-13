@@ -22,7 +22,7 @@ class SessionService:
     def __init__(self, redis_pool=None):
         """Initialize session service."""
         self.session_prefix = "session:"
-        self.session_expire_seconds = settings.session_expire_minutes * 60
+        self.session_expire_seconds = settings.access_token_expire_minutes * 60
         self.redis_pool = redis_pool
 
     def _get_session_key(self, user_id: str) -> str:

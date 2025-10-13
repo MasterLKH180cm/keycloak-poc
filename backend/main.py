@@ -82,7 +82,7 @@ app.add_middleware(
 # Include API routes
 # app.include_router(auth.router, prefix="/api/v1")
 # app.include_router(users.router, prefix="/api/v1")
-app.include_router(session.router, prefix="/api/v1")
+app.include_router(session.router, prefix="/api/session")
 
 
 @app.get("/api/health")
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8001,
         reload=settings.debug,
         log_level=settings.log_level.lower(),
     )

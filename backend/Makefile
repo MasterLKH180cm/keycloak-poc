@@ -35,7 +35,7 @@ run:
 
 # Run in development mode
 dev:
-	uv run uvicorn main:app --reload
+	uv run uvicorn main:app --port 8001 --reload
 
 # Run tests
 test:

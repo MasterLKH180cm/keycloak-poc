@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     keycloak_registration_access_token: str = os.getenv(
         "KEYCLOAK_REGISTRATION_ACCESS_TOKEN"
     )
+    keycloak_verify_ssl: bool = os.getenv("KEYCLOAK_VERIFY_SSL", "false")
 
     # JWT settings
     jwt_secret_key: str = os.getenv("JWT_SECRET_KEY")
