@@ -1,1 +1,52 @@
-# Placeholder Dockerfile for backend
+# Multi-stage Dockerfile for Python Backend
+ARG PYTHON_VERSION=3.12
+ARG UV_VERSION=0.4.18
+
+# Base stage with uv
+FROM python:${PYTHON_VERSION}-slim as base
+ARG UV_VERSION
+RUN pip install uv==${UV_VERSION}
+
+# Development stage
+FROM base as development
+WORKDIR /app
+COPY requirements.txt .
+RUN uv venv && uv pip install -r requirements.txt
+COPY . .
+EXPOSE 8001
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+
+# Build stage
+FROM base as builder
+WORKDIR /app
+COPY requirements.txt .
+RUN uv venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN uv pip install --no-cache-dir -r requirements.txt
+
+# Production stage
+FROM python:${PYTHON_VERSION}-slim as production
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
+COPY --chown=appuser:appuser . .
+
+# Create necessary directories
+RUN mkdir -p /app/logs && chown appuser:appuser /app/logs
+
+# Switch to non-root user
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+EXPOSE 8000
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "4"]
