@@ -5,7 +5,7 @@
   "defaultSignatureAlgorithm": "RS256",
   "revokeRefreshToken": false,
   "refreshTokenMaxReuse": 0,
-  "accessTokenLifespan": 300,
+  "accessTokenLifespan": 900,
   "accessTokenLifespanForImplicitFlow": 900,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
@@ -80,18 +80,18 @@
               "manage-clients",
               "query-groups",
               "view-identity-providers",
-              "impersonation",
               "manage-realm",
+              "impersonation",
               "create-client",
               "manage-events",
               "manage-identity-providers",
               "manage-users"
             ],
-            "fastapi-client": [
-              "uma_protection"
-            ],
             "broker": [
               "read-token"
+            ],
+            "radiology-client": [
+              "uma_protection"
             ],
             "account": [
               "view-consent",
@@ -354,7 +354,20 @@
         }
       ],
       "security-admin-console": [],
-      "fastapi-client": [
+      "admin-cli": [],
+      "account-console": [],
+      "broker": [
+        {
+          "id": "77905767-deae-4604-a097-c4abc685f73a",
+          "name": "read-token",
+          "description": "${role_read-token}",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "8cba603c-af41-441b-b06c-a87f950465b6",
+          "attributes": {}
+        }
+      ],
+      "radiology-client": [
         {
           "id": "6368786c-12d4-422f-988c-4b86fc8fab27",
           "name": "admin",
@@ -379,18 +392,18 @@
                 "manage-clients",
                 "query-groups",
                 "view-identity-providers",
-                "manage-realm",
                 "impersonation",
+                "manage-realm",
                 "create-client",
                 "manage-events",
                 "manage-identity-providers",
                 "manage-users"
               ],
-              "fastapi-client": [
-                "uma_protection"
-              ],
               "broker": [
                 "read-token"
+              ],
+              "radiology-client": [
+                "uma_protection"
               ],
               "account": [
                 "view-consent",
@@ -414,19 +427,6 @@
           "composite": false,
           "clientRole": true,
           "containerId": "e4180102-7b39-45e3-a43f-12637680cd52",
-          "attributes": {}
-        }
-      ],
-      "admin-cli": [],
-      "account-console": [],
-      "broker": [
-        {
-          "id": "77905767-deae-4604-a097-c4abc685f73a",
-          "name": "read-token",
-          "description": "${role_read-token}",
-          "composite": false,
-          "clientRole": true,
-          "containerId": "8cba603c-af41-441b-b06c-a87f950465b6",
           "attributes": {}
         }
       ],
@@ -787,8 +787,8 @@
     },
     {
       "id": "e4180102-7b39-45e3-a43f-12637680cd52",
-      "clientId": "fastapi-client",
-      "name": "fastapi-client",
+      "clientId": "radiology-client",
+      "name": "radiology-client",
       "description": "",
       "rootUrl": "https://20.168.120.11",
       "adminUrl": "https://20.168.120.11/",
@@ -796,7 +796,7 @@
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": true,
-      "clientAuthenticatorType": "client-secret-jwt",
+      "clientAuthenticatorType": "client-secret",
       "redirectUris": [
         "http://localhost:3000/auth/callback",
         "http://localhost:3000/*",
@@ -809,6 +809,7 @@
         "http://localhost:3000/*",
         "https://reporting-frontend-hvegfdd6b0h3e6bg.westus3-01.azurewebsites.net",
         "https://20.168.120.11/*",
+        "http://localhost:8001/*",
         "http://localhost:3000",
         "http://localhost:8000/*",
         "https://reporting-frontend-hvegfdd6b0h3e6bg.westus3-01.azurewebsites.net/*",
@@ -878,6 +879,24 @@
             "access.token.claim": "true",
             "claim.name": "clientHost",
             "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "24f4ed15-3501-481f-b841-38b9f36eebb4",
+          "name": "api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "claim.value": "radiology-client",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "aud",
+            "jsonType.label": "String",
+            "access.tokenResponse.claim": "true"
           }
         },
         {
@@ -2620,17 +2639,22 @@
   "firstBrokerLoginFlow": "first broker login",
   "attributes": {
     "cibaBackchannelTokenDeliveryMode": "poll",
-    "cibaExpiresIn": "120",
     "cibaAuthRequestedUserHint": "login_hint",
-    "oauth2DeviceCodeLifespan": "600",
     "clientOfflineSessionMaxLifespan": "0",
     "oauth2DevicePollingInterval": "5",
     "clientSessionIdleTimeout": "0",
+    "actionTokenGeneratedByUserLifespan.verify-email": "",
+    "actionTokenGeneratedByUserLifespan.idp-verify-account-via-email": "",
+    "clientOfflineSessionIdleTimeout": "0",
+    "actionTokenGeneratedByUserLifespan.execute-actions": "",
+    "cibaInterval": "5",
+    "realmReusableOtpCode": "false",
+    "cibaExpiresIn": "120",
+    "oauth2DeviceCodeLifespan": "600",
     "parRequestUriLifespan": "60",
     "clientSessionMaxLifespan": "0",
-    "clientOfflineSessionIdleTimeout": "0",
-    "cibaInterval": "5",
-    "realmReusableOtpCode": "false"
+    "shortVerificationUri": "",
+    "actionTokenGeneratedByUserLifespan.reset-credentials": ""
   },
   "keycloakVersion": "26.0.8",
   "userManagedAccessAllowed": false,
