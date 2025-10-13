@@ -25,9 +25,6 @@ services:
       resources:
         limits:
           cpus: '1.00'
-          memory: 1024M
-        reservations:
-          memory: 512M
     logging:
       driver: "json-file"
       options:
@@ -54,9 +51,6 @@ services:
       resources:
         limits:
           cpus: '0.50'
-          memory: 512M
-        reservations:
-          memory: 256M
     logging:
       driver: "json-file"
       options:
@@ -98,9 +92,6 @@ services:
       resources:
         limits:
           cpus: '2.00'
-          memory: 2048M
-        reservations:
-          memory: 1024M
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
       interval: 30s
@@ -145,9 +136,6 @@ services:
       resources:
         limits:
           cpus: '1.00'
-          memory: 1024M
-        reservations:
-          memory: 512M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -179,9 +167,6 @@ services:
       resources:
         limits:
           cpus: '0.50'
-          memory: 256M
-        reservations:
-          memory: 128M
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
