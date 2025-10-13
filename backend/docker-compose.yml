@@ -111,8 +111,8 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - TZ=UTC
     depends_on:
-      keycloak:
-        condition: service_completed_successfully
+      # keycloak:
+      #   condition: service_completed_successfully
       db:
         condition: service_healthy
       redis:
