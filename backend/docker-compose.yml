@@ -38,14 +38,14 @@ services:
   redis:
     image: redis:8.2.1-alpine
     container_name: redis
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-redis123}"]
+    command: ["redis-server", "--appendonly", "yes"]
     volumes: 
       - redis_data:/data
       - ./redis/redis.conf:/etc/redis/redis.conf:ro
     networks: [stack]
     ports: ["${REDIS_PORT:-6379}:6379"]
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis123}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
