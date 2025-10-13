@@ -80,12 +80,6 @@ services:
       - "${KEYCLOAK_PORT:-8080}:8080"
     networks: [stack]
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
     logging:
       driver: "json-file"
       options:
@@ -112,7 +106,6 @@ services:
       - TZ=UTC
     depends_on:
       keycloak:
-        condition: service_healthy
       db:
         condition: service_healthy
       redis:
