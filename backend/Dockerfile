@@ -1,28 +1,26 @@
 # Multi-stage Dockerfile for Python Backend
 ARG PYTHON_VERSION=3.12
-ARG UV_VERSION=0.4.18
 
-# Base stage with uv
+# Base stage
 FROM python:${PYTHON_VERSION}-slim as base
-ARG UV_VERSION
-RUN pip install uv==${UV_VERSION}
+RUN pip install --upgrade pip
 
 # Development stage
 FROM base as development
 WORKDIR /app
 COPY requirements.txt .
-RUN uv venv && uv pip install -r requirements.txt
+RUN pip install -r requirements.txt
 COPY . .
 EXPOSE 8001
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
 
 # Build stage
 FROM base as builder
 WORKDIR /app
 COPY requirements.txt .
-RUN uv venv /opt/venv
+RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN uv pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Production stage
 FROM python:${PYTHON_VERSION}-slim as production
@@ -46,7 +44,7 @@ USER appuser
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8001/health || exit 1
 
-EXPOSE 8000
+EXPOSE 8001
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "4"]

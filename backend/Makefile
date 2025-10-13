@@ -31,11 +31,12 @@ help:
 
 # Create virtual environment
 create_venv:
-	uv venv
+	python -m venv .venv
 
 # install dependencies
-install:
-	uv add -r requirements.txt
+install: create_venv
+	.venv/bin/pip install --upgrade pip
+	.venv/bin/pip install -r requirements.txt
 
 # Build the application
 build: install migrate
@@ -43,28 +44,28 @@ build: install migrate
 
 # Run database migrations
 migrate:
-	uv run alembic upgrade head
+	.venv/bin/alembic upgrade head
 
 # Run the application
 run:
-	uv run uvicorn main:app --port 8001 --reload
+	.venv/bin/uvicorn main:app --port 8001 --reload
 # 	uv run python main.py
 
 # Run in development mode
 dev:
-	uv run uvicorn main:app --port 8001 --reload
+	.venv/bin/uvicorn main:app --port 8001 --reload
 
 # Run tests
 test:
-	uv run pytest
+	.venv/bin/pytest
 
 # Run linting
 lint:
-	uv run python -m py_compile main.py
+	.venv/bin/python -m py_compile main.py
 
 # Format code
 format:
-	uv run black .
+	.venv/bin/black .
 
 # Clean up
 clean:
