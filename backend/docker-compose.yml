@@ -64,7 +64,57 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-keycloak}
+      KC_DB_USERNAME: ${POSTGRES_USER:-keycloak}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-keycloak}
+      KC_IMPORT: /opt/keycloak/data/import/realm-export.json
+      KC_PROXY: edge
+      KC_HOSTNAME: ${KC_HOSTNAME:-20.168.120.11}
+      KC_HOSTNAME_URL: ${KC_HOSTNAME_URL:-https://20.168.120.11}
+      KC_HOSTNAME_ADMIN_URL: ${KC_HOSTNAME_ADMIN_URL:-https://20.168.120.11}
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_LOG_LEVEL: ${KC_LOG_LEVEL:-INFO}
+      TZ: "UTC"
+      JAVA_OPTS: "-Xms512m -Xmx1024m -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - keycloak_data:/opt/keycloak/data
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${KEYCLOAK_PORT:-8080}:8080"
+    networks: [stack]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.00'
+          memory: 2048M
+        reservations:
+          cpus: '1.00'
+          memory: 1024M
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
   backend:
     build:
       context: .
@@ -85,6 +135,8 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - TZ=UTC
     depends_on:
+      keycloak:
+        condition: service_healthy
       db:
         condition: service_healthy
       redis:
@@ -146,57 +198,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.0
-    command: ["start", "--import-realm"]
-    environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-keycloak}
-      KC_DB_USERNAME: ${POSTGRES_USER:-keycloak}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-keycloak}
-      KC_IMPORT: /opt/keycloak/data/import/realm-export.json
-      KC_PROXY: edge
-      KC_HOSTNAME: ${KC_HOSTNAME:-20.168.120.11}
-      KC_HOSTNAME_URL: ${KC_HOSTNAME_URL:-https://20.168.120.11}
-      KC_HOSTNAME_ADMIN_URL: ${KC_HOSTNAME_ADMIN_URL:-https://20.168.120.11}
-      KC_PROXY_HEADERS: xforwarded
-      KC_HTTP_ENABLED: "true"
-      KC_HEALTH_ENABLED: "true"
-      KC_METRICS_ENABLED: "true"
-      KC_LOG_LEVEL: ${KC_LOG_LEVEL:-INFO}
-      TZ: "UTC"
-      JAVA_OPTS: "-Xms512m -Xmx1024m -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m"
-    volumes:
-      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
-      - keycloak_data:/opt/keycloak/data
-    depends_on:
-      db:
-        condition: service_healthy
-    ports:
-      - "${KEYCLOAK_PORT:-8080}:8080"
-    networks: [stack]
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '2.00'
-          memory: 2048M
-        reservations:
-          cpus: '1.00'
-          memory: 1024M
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  
 
 volumes:
   db_data:
