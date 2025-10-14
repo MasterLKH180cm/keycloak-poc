@@ -80,6 +80,18 @@ async def study_opened(
     and publishes it to Redis stream for other applications to consume.
     """
     try:
+        # DEBUG: Log the incoming request
+        logger.info("=== STUDY OPENED REQUEST ===")
+        logger.info(f"User: {user_info.get('preferred_username', 'unknown')}")
+        logger.info(f"Study ID: {request.study_id}")
+        logger.info(f"Patient ID: {request.patient_id}")
+        logger.info(f"Patient DOB: {request.patient_dob}")
+        logger.info(f"Accession: {request.accession_number}")
+        logger.info(f"Study Name: {request.current_study_name}")
+        logger.info(f"Source: {request.source}")
+        logger.info(f"Target: {request.target}")
+        logger.info("===========================")
+
         logger.info(
             f"User {user_info['preferred_username']} opening study {request.study_id}"
         )
