@@ -60,3 +60,5 @@ CMD ["uvicorn", "main:app", \
      "--workers", "4", \
      "--proxy-headers", \
      "--forwarded-allow-ips", "*"]
+
+     

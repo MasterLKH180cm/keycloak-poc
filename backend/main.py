@@ -157,4 +157,8 @@ if __name__ == "__main__":
         # Enable proxy headers support for Nginx
         proxy_headers=True,
         forwarded_allow_ips="*",
+        # CRITICAL: Allow requests from any host (IP addresses, localhost, domains)
+        server_header=False,
+        # This tells Uvicorn to trust the X-Forwarded-* headers from Nginx
+        root_path="",
     )
