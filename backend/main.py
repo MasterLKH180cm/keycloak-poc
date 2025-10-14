@@ -9,7 +9,6 @@ from app.db.redis import redis_manager
 from app.services.keycloak_service import keycloak_service
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -27,7 +26,6 @@ async def lifespan(app: FastAPI):
         logger.info("Starting Hospital Authentication System...")
 
         # Initialize database
-        # await init_keycloak_db()
         await init_session_db()
         logger.info("Database initialized")
 
@@ -65,20 +63,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ===== CRITICAL: Trusted Host Middleware =====
-# This allows requests from Nginx reverse proxy
-# Set to ["*"] for development, specify exact hosts for production
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=[
-        "*",  # Allow all hosts (development)
-        # For production, specify exact hosts:
-        # "20.168.120.11",
-        # "localhost",
-        # "yourdomain.com",
-    ],
-)
-
 # ===== CORS Middleware =====
 # Configure CORS for browser-based clients
 app.add_middleware(
@@ -91,8 +75,6 @@ app.add_middleware(
 )
 
 # Include API routes
-# app.include_router(auth.router, prefix="/api/v1")
-# app.include_router(users.router, prefix="/api/v1")
 app.include_router(session.router, prefix="/api/session")
 
 
@@ -132,8 +114,6 @@ async def system_status():
         from app.db.database import session_db_engine
         from sqlalchemy import text
 
-        # async with keycloak_db_engine.begin() as conn:
-        #     await conn.execute(text("SELECT 1"))
         async with session_db_engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
         status_info["database"] = "healthy"
