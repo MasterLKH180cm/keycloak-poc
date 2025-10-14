@@ -12,7 +12,13 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 COPY . .
 EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Development: Enable reload and proxy headers for Nginx
+CMD ["uvicorn", "main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--reload", \
+     "--proxy-headers", \
+     "--forwarded-allow-ips", "*"]
 
 # Build stage
 FROM base as builder
@@ -42,9 +48,15 @@ RUN mkdir -p /app/logs && chown appuser:appuser /app/logs
 # Switch to non-root user
 USER appuser
 
-# Health check
+# Health check - use simple /health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8000/api/health || exit 1
 
 EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Production: Multiple workers with proxy headers support for Nginx
+CMD ["uvicorn", "main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "4", \
+     "--proxy-headers", \
+     "--forwarded-allow-ips", "*"]
