@@ -80,8 +80,8 @@
               "manage-clients",
               "query-groups",
               "view-identity-providers",
-              "manage-realm",
               "impersonation",
+              "manage-realm",
               "create-client",
               "manage-events",
               "manage-identity-providers",
@@ -808,8 +808,8 @@
         "https://localhost:3000",
         "http://localhost:3000/*",
         "https://reporting-frontend-hvegfdd6b0h3e6bg.westus3-01.azurewebsites.net",
-        "https://20.168.120.11/*",
         "http://localhost:8001/*",
+        "https://20.168.120.11/*",
         "http://localhost:3000",
         "http://localhost:8000/*",
         "https://reporting-frontend-hvegfdd6b0h3e6bg.westus3-01.azurewebsites.net/*",
@@ -1742,13 +1742,13 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
-            "oidc-usermodel-attribute-mapper",
-            "oidc-usermodel-property-mapper",
-            "saml-user-attribute-mapper",
             "oidc-address-mapper",
+            "oidc-sha256-pairwise-sub-mapper",
+            "saml-user-attribute-mapper",
+            "oidc-usermodel-property-mapper",
             "oidc-full-name-mapper",
             "saml-user-property-mapper",
-            "oidc-sha256-pairwise-sub-mapper",
+            "oidc-usermodel-attribute-mapper",
             "saml-role-list-mapper"
           ]
         }
@@ -1770,13 +1770,13 @@
         "config": {
           "allowed-protocol-mapper-types": [
             "oidc-usermodel-property-mapper",
-            "oidc-usermodel-attribute-mapper",
-            "oidc-address-mapper",
-            "oidc-full-name-mapper",
-            "saml-role-list-mapper",
-            "saml-user-attribute-mapper",
             "oidc-sha256-pairwise-sub-mapper",
-            "saml-user-property-mapper"
+            "saml-role-list-mapper",
+            "oidc-usermodel-attribute-mapper",
+            "saml-user-property-mapper",
+            "oidc-address-mapper",
+            "saml-user-attribute-mapper",
+            "oidc-full-name-mapper"
           ]
         }
       },
