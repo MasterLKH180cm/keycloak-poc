@@ -30,10 +30,10 @@ services:
   redis:
     image: redis:8.2.1-alpine
     container_name: redis
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "/etc/redis/redis.conf", "--appendonly", "yes"]
     volumes: 
       - redis_data:/data
-      - ./redis/redis.conf:/etc/redis/redis.conf:ro
+      - ./redis/redis.conf:/etc/redis/redis.conf
     networks: [stack]
     ports: ["${REDIS_PORT:-6379}:6379"]
     healthcheck:
