@@ -61,10 +61,16 @@ services:
       KC_DB_USERNAME: ${POSTGRES_USER:-keycloak}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-keycloak}
       KC_IMPORT: /opt/keycloak/data/import/realm-export.json
-      KC_PROXY: edge
-      KC_HOSTNAME: ${KC_HOSTNAME:-20.168.120.11}
+      # KC_PROXY: edge
+      # KC_HOSTNAME: ${KC_HOSTNAME:-20.168.120.11}
       KC_HTTP_ENABLED: "true"
+      KC_HTTP_RELATIVE_PATH: /
+      KC_HOSTNAME_STRICT_HTTPS: true
+      KC_HOSTNAME_STRICT_BACKCHANNEL: true
       KC_PROXY_HEADERS: xforwarded
+      KC_PROXY: passthrough
+      KC_HOSTNAME_URL: https://20.168.120.11
+
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
       KC_LOG_LEVEL: ${KC_LOG_LEVEL:-INFO}
