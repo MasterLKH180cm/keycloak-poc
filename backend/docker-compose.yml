@@ -52,11 +52,19 @@ services:
         max-file: "3"
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    command: ["start-dev", "--import-realm"]
+    command: 
+      - |
+        echo "Waiting for database to be fully ready..."
+        sleep 10
+        echo "Starting Keycloak..."
+        start-dev --import-realm
+
     environment:
       KC_DB_POOL_INITIAL_SIZE: "5"
       KC_DB_POOL_MIN_SIZE: "5"
       KC_DB_POOL_MAX_SIZE: "20"
+      QUARKUS_DATASOURCE_JDBC_ACQUISITION_TIMEOUT: "30"  # 30 seconds instead of 5
+      QUARKUS_DATASOURCE_JDBC_BACKGROUND_VALIDATION_INTERVAL: "2M"
       QUARKUS_LOG_LEVEL: DEBUG
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
