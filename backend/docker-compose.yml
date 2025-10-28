@@ -17,7 +17,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 300s
     networks: [stack]
     ports: ["${DB_PORT:-15432}:5432"]
     restart: unless-stopped
@@ -30,17 +30,15 @@ services:
   redis:
     image: redis:8.2.1-alpine
     container_name: redis
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    command: ["redis-server", "--appendonly", "yes"]
     volumes: 
       - redis_data:/data
-      - ./redis/redis-entrypoint.sh:/usr/local/bin/redis-entrypoint.sh:ro
+      - ./redis/redis.conf:/etc/redis/redis.conf:ro
     networks: [stack]
     ports: ["${REDIS_PORT:-6379}:6379"]
-    command: ["sh", "/usr/local/bin/redis-entrypoint.sh"]
     healthcheck:
-      test: ["CMD", "sh", "-c", "redis-cli -a $${REDIS_PASSWORD} ping | grep PONG"]
-      interval: 30s
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
@@ -100,12 +98,12 @@ services:
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-keycloak}:${POSTGRES_PASSWORD:-keycloak}@db:5432/${POSTGRES_DB:-keycloak}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
       - KEYCLOAK_URL=${KEYCLOAK_URL:-https://20.168.120.11}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-master}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-backend-client}
       - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
-      - JWT_SECRET=${JWT_SECRET_KEY}
+      - JWT_SECRET=${JWT_SECRET}
       - API_VERSION=${API_VERSION:-v1}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://20.168.120.11}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
