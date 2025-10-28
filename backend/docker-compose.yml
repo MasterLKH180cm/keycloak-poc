@@ -14,10 +14,10 @@ services:
       - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-keycloak} -d ${POSTGRES_DB:-keycloak}"]
-      interval: 10s      # Check every 10 seconds (was 30s)
+      interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 10s
     networks: [stack]
     ports: ["${DB_PORT:-15432}:5432"]
     restart: unless-stopped
