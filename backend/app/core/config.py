@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # Redis settings
     redis_url: str = os.getenv("REDIS_URL")
     redis_stream_name: str = os.getenv("REDIS_STREAM_NAME", "dictation_stream")
-
+    redis_password: str = os.getenv("REDIS_PASSWORD")
     # Keycloak settings
     keycloak_server_url: str = os.getenv("KEYCLOAK_SERVER_URL")
     keycloak_realm: str = os.getenv("KEYCLOAK_REALM")
