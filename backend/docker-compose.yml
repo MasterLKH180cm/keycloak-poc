@@ -73,7 +73,7 @@ services:
       KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
-      KC_LOG_LEVEL: ${KC_LOG_LEVEL:-DEBUG}
+      KC_LOG_LEVEL: ${KC_LOG_LEVEL:-INFO}
       TZ: "UTC"
       JAVA_OPTS: "-Xms512m -Xmx1024m -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m"
     volumes:
