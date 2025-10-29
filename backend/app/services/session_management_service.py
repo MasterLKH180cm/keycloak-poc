@@ -32,6 +32,7 @@ class SessionManagementService:
     def _initialize_redis(self):
         """Initialize Redis connection."""
         try:
+            logger.info(f"password is {settings.redis_password}")
             self.redis_client = redis.from_url(
                 settings.redis_url,
                 encoding="utf-8",
