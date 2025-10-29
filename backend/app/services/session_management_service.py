@@ -32,12 +32,33 @@ class SessionManagementService:
     def _initialize_redis(self):
         """Initialize Redis connection."""
         try:
+            # Build Redis URL with password if provided
+            redis_url = settings.redis_url
+            if settings.redis_password:
+                # Parse the URL and add password
+                from urllib.parse import urlparse, urlunparse
+
+                parsed = urlparse(redis_url)
+                # Reconstruct URL with password
+                netloc = f":{settings.redis_password}@{parsed.hostname}"
+                if parsed.port:
+                    netloc += f":{parsed.port}"
+                redis_url = urlunparse(
+                    (
+                        parsed.scheme,
+                        netloc,
+                        parsed.path,
+                        parsed.params,
+                        parsed.query,
+                        parsed.fragment,
+                    )
+                )
+
             self.redis_client = redis.from_url(
-                settings.redis_url,
+                redis_url,
                 encoding="utf-8",
                 decode_responses=True,
                 socket_keepalive=True,
-                password=settings.redis_password,
                 socket_keepalive_options={},
                 health_check_interval=30,
             )
