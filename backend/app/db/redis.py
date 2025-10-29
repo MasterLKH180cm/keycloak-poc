@@ -24,6 +24,7 @@ class RedisManager:
                 decode_responses=True,
                 max_connections=10,
                 socket_keepalive=True,
+                password=settings.redis_password,
                 socket_connect_timeout=5,
                 retry_on_timeout=True,
                 health_check_interval=30,
