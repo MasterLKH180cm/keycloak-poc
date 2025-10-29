@@ -8,7 +8,7 @@ into FastAPI route handlers.
 
 import logging
 
-from app.services.redis_service import get_redis
+from app.services.redis_service import redis_service
 from fastapi import HTTPException, status
 from redis.asyncio import Redis
 
@@ -32,7 +32,7 @@ async def get_redis_client() -> Redis:
     """
     try:
         logger.debug("Acquiring Redis client")
-        return get_redis()
+        return redis_service.get_client()
     except RuntimeError as e:
         logger.error(f"Redis not available: {e}")
         raise HTTPException(

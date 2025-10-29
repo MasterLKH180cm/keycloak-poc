@@ -11,9 +11,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-import redis.asyncio as redis
 from app.core.config import settings
 from app.models.session_models import Session, SessionEvent
+from app.services.redis_service import redis_service
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -26,26 +26,8 @@ class SessionManagementService:
 
     def __init__(self):
         """Initialize session management service."""
-        self.redis_client = None
-        self._initialize_redis()
-
-    def _initialize_redis(self):
-        """Initialize Redis connection."""
-        try:
-            logger.info(f"password is {settings.redis_password}")
-            self.redis_client = redis.from_url(
-                settings.redis_url,
-                encoding="utf-8",
-                decode_responses=True,
-                socket_keepalive=True,
-                password=settings.redis_password,
-                socket_keepalive_options={},
-                health_check_interval=30,
-            )
-            logger.info("Redis client initialized for session management")
-        except Exception as e:
-            logger.error(f"Failed to initialize Redis client: {e}")
-            self.redis_client = None
+        # Use the global redis_service instead of creating own client
+        pass
 
     async def get_or_create_session(
         self, user_info: Dict[str, Any], db: AsyncSession
@@ -60,7 +42,6 @@ class SessionManagementService:
         Returns:
             str: Session ID
         """
-        # Use session_state from JWT if available, otherwise generate UUID
         session_id = user_info.get("session_state")
         if not session_id:
             session_id = str(uuid.uuid4())
@@ -167,14 +148,14 @@ class SessionManagementService:
         Returns:
             str: Redis event ID if successful
         """
-        if not self.redis_client:
-            logger.warning("Redis client not available, skipping stream publish")
-            return None
-
         try:
+            # Check if Redis is available
+            if not await redis_service.ping():
+                logger.warning("Redis not available, skipping stream publish")
+                return None
+
             # Prepare stream data
             stream_data = {
-                "event": event["event"],
                 "data": json.dumps(event_data) if event_data else "{}",
                 "user_id": user_info["sub"],
                 "session_id": event["session_id"],
@@ -183,9 +164,11 @@ class SessionManagementService:
                 "target": json.dumps(event["target"]),
             }
 
-            # Publish to stream (using dictation_stream as specified)
-            redis_event_id = await self.redis_client.xadd(
-                "dictation_stream", stream_data
+            # Publish to stream
+            redis_event_id = await redis_service.add_to_stream(
+                stream_name=settings.redis_stream_name,
+                event_type=event["event"],
+                data=stream_data,
             )
 
             logger.info(
@@ -286,15 +269,8 @@ class SessionManagementService:
         Returns:
             Dict containing health status
         """
-        redis_healthy = False
-        redis_error = None
-
-        if self.redis_client:
-            try:
-                await self.redis_client.ping()
-                redis_healthy = True
-            except Exception as e:
-                redis_error = str(e)
+        redis_healthy = await redis_service.ping()
+        redis_error = None if redis_healthy else "Connection failed"
 
         return {
             "status": "healthy" if redis_healthy else "degraded",

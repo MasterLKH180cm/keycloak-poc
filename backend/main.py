@@ -5,8 +5,8 @@ import uvicorn
 from app.api import session
 from app.core.config import settings
 from app.db.database import init_session_db
-from app.db.redis import redis_manager
 from app.services.keycloak_service import keycloak_service
+from app.services.redis_service import redis_service
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -27,12 +27,11 @@ async def lifespan(app: FastAPI):
         logger.info("Starting Hospital Authentication System...")
 
         # Initialize database
-        # await init_keycloak_db()
         await init_session_db()
         logger.info("Database initialized")
 
         # Initialize Redis
-        await redis_manager.init_redis()
+        await redis_service.init_redis()
         logger.info("Redis initialized")
 
         # Initialize Keycloak
@@ -49,7 +48,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     try:
-        await redis_manager.close_redis()
+        await redis_service.close_redis()
         logger.info("Services shut down successfully")
     except Exception as e:
         logger.error(f"Shutdown error: {e}")
@@ -132,8 +131,6 @@ async def system_status():
         from app.db.database import session_db_engine
         from sqlalchemy import text
 
-        # async with keycloak_db_engine.begin() as conn:
-        #     await conn.execute(text("SELECT 1"))
         async with session_db_engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
         status_info["database"] = "healthy"
@@ -143,8 +140,8 @@ async def system_status():
 
     try:
         # Check Redis
-        await redis_manager.redis_client.ping()
-        status_info["redis"] = "healthy"
+        redis_healthy = await redis_service.ping()
+        status_info["redis"] = "healthy" if redis_healthy else "unhealthy"
     except Exception as e:
         status_info["redis"] = f"unhealthy: {str(e)}"
         logger.error(f"Redis health check failed: {e}")
