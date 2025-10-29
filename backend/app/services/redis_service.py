@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 REDIS_URL = settings.redis_url
 REDIS_PASSWORD = settings.redis_password
 REDIS_STREAM_NAME = settings.redis_stream_name
+logger.info(f"[Redis] URL: {REDIS_URL}")
+logger.info(f"[Redis] Password: {REDIS_PASSWORD}")
+logger.info(f"[Redis] Stream Name: {REDIS_STREAM_NAME}")
 DEFAULT_CONSUMER_GROUP = "fastapi_radiology_group"
 
 # Global Redis client
