@@ -37,6 +37,7 @@ class SessionManagementService:
                 encoding="utf-8",
                 decode_responses=True,
                 socket_keepalive=True,
+                password=settings.redis_password,
                 socket_keepalive_options={},
                 health_check_interval=30,
             )
