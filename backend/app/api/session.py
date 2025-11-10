@@ -84,6 +84,9 @@ async def study_opened(
         logger.info("=== STUDY OPENED REQUEST ===")
         logger.info(f"User: {user_info.get('preferred_username', 'unknown')}")
         logger.info(f"Study ID: {request.study_id}")
+        logger.info(f"Age: {request.age}")
+        logger.info(f"Birth: {request.birth}")
+        logger.info(f" Sex: {request.sex}")
         logger.info(f"Patient ID: {request.patient_id}")
         logger.info(f"Patient DOB: {request.patient_dob}")
         logger.info(f"Accession: {request.accession_number}")
@@ -102,6 +105,9 @@ async def study_opened(
         # Prepare event data
         event_data = {
             "studyId": request.study_id,
+            "age": request.age,
+            "birth": request.birth,
+            "sex": request.sex,
             "patientId": request.patient_id,
             "patientDOB": request.patient_dob,
             "accessionNumber": request.accession_number,
