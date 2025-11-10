@@ -149,6 +149,9 @@ class StudyOpenedRequest(BaseModel):
     patient_id: str = Field(
         ..., description="Patient identifier (e.g., 'SSE_Leia, Princess')"
     )
+    sex: str = Field(..., description="Patient sex (e.g., 'F')")
+    age: str = Field(..., description="Patient age (e.g., '025Y')")
+    birth: str = Field(..., description="Patient birth date (ISO format)")
     patient_dob: str = Field(..., description="Patient date of birth (ISO format)")
     accession_number: str = Field(..., description="Study accession number")
     current_study_name: str = Field(
