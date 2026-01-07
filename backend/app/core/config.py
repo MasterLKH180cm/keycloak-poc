@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     # Redis settings
     redis_url: str = os.getenv("REDIS_URL")
     redis_stream_name: str = os.getenv("REDIS_STREAM_NAME", "dictation_stream")
-    redis_password: str = os.getenv("REDIS_PASSWORD")
+    redis_password: str = os.getenv("REDIS_PASSWORD", "")
+    redis_password_docker: str = os.getenv("REDIS_PASSWORD_DOCKER", "")
     # Keycloak settings
     keycloak_server_url: str = os.getenv("KEYCLOAK_SERVER_URL")
     keycloak_realm: str = os.getenv("KEYCLOAK_REALM")
@@ -59,7 +60,9 @@ class Settings(BaseSettings):
     session_timeout_minutes: int = 30
     max_login_attempts: int = 5
     account_lockout_duration_minutes: int = 30
-
+    otel_collector_host: str = os.getenv("OTEL_COLLECTOR_HOST")
+    print(f"OTEL_COLLECTOR_PORT: {os.getenv("OTEL_COLLECTOR_PORT")}")
+    otel_collector_port: int = int(os.getenv("OTEL_COLLECTOR_PORT"))
     class Config:
         env_file = ".env"
         case_sensitive = False

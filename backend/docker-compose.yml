@@ -22,22 +22,25 @@ services:
     ports: ["${DB_PORT:-15432}:5432"]
     restart: unless-stopped
     logging:
-      driver: "json-file"
+      driver: fluentd
       options:
-        max-size: "10m"
-        max-file: "3"
+        fluentd-address: localhost:24224
+        fluentd-async: "true"
+        fluentd-retry-wait: "1s"
+        fluentd-max-retries: "30"
+        tag: "docker.db"
 
   redis:
     image: redis:8.2.1-alpine
     container_name: redis
     environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD_DOCKER:-${REDIS_PASSWORD}}
     volumes: 
       - redis_data:/data
       - ./redis/redis-entrypoint.sh:/usr/local/bin/redis-entrypoint.sh:ro
     networks: [stack]
     ports: ["${REDIS_PORT:-6379}:6379"]
-    command: ["sh", "/usr/local/bin/redis-entrypoint.sh"]
+    command: ["/bin/sh", "-c", "sh /usr/local/bin/redis-entrypoint.sh && redis-server --requirepass \"$$REDIS_PASSWORD\""]
     healthcheck:
       test: ["CMD", "sh", "-c", "redis-cli -a $${REDIS_PASSWORD} ping | grep PONG"]
       interval: 30s
@@ -46,10 +49,13 @@ services:
       start_period: 15s
     restart: unless-stopped
     logging:
-      driver: "json-file"
+      driver: fluentd
       options:
-        max-size: "10m"
-        max-file: "3"
+        fluentd-address: localhost:24224
+        fluentd-async: "true"
+        fluentd-retry-wait: "1s"
+        fluentd-max-retries: "30"
+        tag: "docker.redis"
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
     command: ["start-dev", "--import-realm"]
@@ -89,10 +95,13 @@ services:
     #   retries: 5
     #   start_period: 120s
     logging:
-      driver: "json-file"
+      driver: fluentd
       options:
-        max-size: "10m"
-        max-file: "3"
+        fluentd-address: localhost:24224
+        fluentd-async: "true"
+        fluentd-retry-wait: "1s"
+        fluentd-max-retries: "30"
+        tag: "docker.keycloak"
   backend:
     build:
       context: .
@@ -103,6 +112,7 @@ services:
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-keycloak}:${POSTGRES_PASSWORD:-keycloak}@db:5432/${POSTGRES_DB:-keycloak}
       - REDIS_URL=redis://redis:6379/0
+      - REDIS_PASSWORD=${REDIS_PASSWORD_DOCKER:-${REDIS_PASSWORD}}
       - KEYCLOAK_URL=${KEYCLOAK_URL:-https://20.168.120.11}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-master}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-backend-client}
@@ -111,6 +121,8 @@ services:
       - API_VERSION=${API_VERSION:-v1}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://20.168.120.11}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - OTEL_COLLECTOR_HOST=${OTEL_COLLECTOR_HOST:-20.14.90.107}
+      - OTEL_COLLECTOR_PORT=${OTEL_COLLECTOR_PORT:-4318}
       - TZ=UTC
     depends_on:
       # keycloak:
@@ -119,7 +131,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports: ["${BACKEND_PORT:-8000}:8000"]
+    ports: ["${BACKEND_PORT:-8001}:8000"]
     networks: [stack]
     restart: unless-stopped
     healthcheck:
@@ -129,10 +141,13 @@ services:
       retries: 3
       start_period: 40s
     logging:
-      driver: "json-file"
+      driver: fluentd
       options:
-        max-size: "10m"
-        max-file: "3"
+        fluentd-address: localhost:24224
+        fluentd-async: "true"
+        fluentd-retry-wait: "1s"
+        fluentd-max-retries: "30"
+        tag: "docker.backend"
 
   nginx:
     image: nginx:1.25-alpine
@@ -155,13 +170,42 @@ services:
       timeout: 10s
       retries: 3
     logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        fluentd-async: "true"
+        fluentd-retry-wait: "1s"
+        fluentd-max-retries: "30"
+        tag: "docker.nginx"
+
+  fluent-bit:
+    image: fluent/fluent-bit:3.2
+    container_name: fluent-bit
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - OTEL_COLLECTOR_HOST=${OTEL_COLLECTOR_HOST:-20.14.90.107}
+      - OTEL_COLLECTOR_PORT=${OTEL_COLLECTOR_PORT:-4318}
+    volumes:
+      - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
+      - ./fluent-bit/timestamp.lua:/fluent-bit/etc/timestamp.lua:ro
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+      - "2020:2020"
+    networks: [stack]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2020/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    
-
-  
 
 volumes:
   db_data:
